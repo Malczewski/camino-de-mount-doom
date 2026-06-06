@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="SUPABASE_URL" content="https://wpkwqhbrvphjppfquqby.supabase.co">
+  <meta name="SUPABASE_ANON_KEY" content="sb_publishable_NgUEsf2o_X6MNmQQREKdJg_onm4VLrJ">
+  <title>Connect Account</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background: #f5f5f7;
+      color: #1d1d1f;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px 16px;
+      line-height: 1.5;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+      width: 100%;
+      max-width: 360px;
+      padding: 32px 28px;
+    }
+
+    h1 {
+      font-size: 1.375rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+
+    .subtitle {
+      font-size: 0.875rem;
+      color: #6e6e73;
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    label {
+      display: block;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: #424245;
+      margin-bottom: 6px;
+    }
+
+    input {
+      width: 100%;
+      font-size: 1rem;
+      padding: 10px 12px;
+      border: 1px solid #d2d2d7;
+      border-radius: 8px;
+      background: #fff;
+      color: #1d1d1f;
+      margin-bottom: 16px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input:focus {
+      border-color: #0071e3;
+    }
+
+    button[type="submit"] {
+      width: 100%;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: #0071e3;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    button[type="submit"]:hover:not(:disabled) {
+      background: #0077ed;
+    }
+
+    button[type="submit"]:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .toggle {
+      margin-top: 20px;
+      text-align: center;
+      font-size: 0.875rem;
+      color: #6e6e73;
+    }
+
+    .toggle button {
+      background: none;
+      border: none;
+      color: #0071e3;
+      font-size: inherit;
+      font-weight: 500;
+      cursor: pointer;
+      padding: 0;
+      text-decoration: underline;
+    }
+
+    .message {
+      margin-top: 16px;
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      display: none;
+    }
+
+    .message.visible { display: block; }
+
+    .message.error {
+      background: #fff2f2;
+      color: #b42318;
+      border: 1px solid #fecdca;
+    }
+
+    .message.success {
+      background: #ecfdf3;
+      color: #067647;
+      border: 1px solid #abefc6;
+    }
+
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="auth-panel">
+      <h1 id="form-title">Sign in</h1>
+      <p class="subtitle" id="form-subtitle">Connect your account to your watch</p>
+
+      <form id="auth-form" novalidate>
+        <label for="email">Email</label>
+        <input type="email" id="email" name="email" autocomplete="email" required>
+
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required minlength="6">
+
+        <button type="submit" id="submit-btn">Sign in</button>
+      </form>
+
+      <div class="toggle">
+        <span id="toggle-prompt">Don't have an account?</span>
+        <button type="button" id="toggle-mode">Sign up</button>
+      </div>
+    </div>
+
+    <div id="success-panel" class="hidden">
+      <h1>Connected!</h1>
+      <p class="subtitle">You can close this page.</p>
+    </div>
+
+    <div id="message" class="message" role="alert"></div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script>
+    (function () {
+      var mode = "login";
+
+      var urlMeta = document.querySelector('meta[name="SUPABASE_URL"]');
+      var keyMeta = document.querySelector('meta[name="SUPABASE_ANON_KEY"]');
+      var supabaseUrl = urlMeta ? urlMeta.getAttribute("content") : "";
+      var supabaseAnonKey = keyMeta ? keyMeta.getAttribute("content") : "";
+
+      var form = document.getElementById("auth-form");
+      var formTitle = document.getElementById("form-title");
+      var formSubtitle = document.getElementById("form-subtitle");
+      var submitBtn = document.getElementById("submit-btn");
+      var toggleBtn = document.getElementById("toggle-mode");
+      var togglePrompt = document.getElementById("toggle-prompt");
+      var messageEl = document.getElementById("message");
+      var authPanel = document.getElementById("auth-panel");
+      var successPanel = document.getElementById("success-panel");
+      var passwordInput = document.getElementById("password");
+
+      function showMessage(text, type) {
+        messageEl.textContent = text;
+        messageEl.className = "message visible " + type;
+      }
+
+      function clearMessage() {
+        messageEl.textContent = "";
+        messageEl.className = "message";
+      }
+
+      function setLoading(loading) {
+        submitBtn.disabled = loading;
+        submitBtn.textContent = loading
+          ? (mode === "login" ? "Signing in…" : "Creating account…")
+          : (mode === "login" ? "Sign in" : "Sign up");
+      }
+
+      function setMode(nextMode) {
+        mode = nextMode;
+        clearMessage();
+        form.reset();
+
+        if (mode === "login") {
+          formTitle.textContent = "Sign in";
+          formSubtitle.textContent = "Connect your account to your watch";
+          submitBtn.textContent = "Sign in";
+          togglePrompt.textContent = "Don't have an account?";
+          toggleBtn.textContent = "Sign up";
+          passwordInput.autocomplete = "current-password";
+        } else {
+          formTitle.textContent = "Sign up";
+          formSubtitle.textContent = "Create an account to get started";
+          submitBtn.textContent = "Sign up";
+          togglePrompt.textContent = "Already have an account?";
+          toggleBtn.textContent = "Sign in";
+          passwordInput.autocomplete = "new-password";
+        }
+      }
+
+      toggleBtn.addEventListener("click", function () {
+        setMode(mode === "login" ? "signup" : "login");
+      });
+
+      function validateConfig() {
+        if (!supabaseUrl || !supabaseAnonKey) {
+          showMessage("App is not configured. Missing Supabase credentials.", "error");
+          return false;
+        }
+        return true;
+      }
+
+      function validateForm(email, password) {
+        if (!email) {
+          showMessage("Please enter your email address.", "error");
+          return false;
+        }
+        if (!password) {
+          showMessage("Please enter your password.", "error");
+          return false;
+        }
+        if (password.length < 6) {
+          showMessage("Password must be at least 6 characters.", "error");
+          return false;
+        }
+        return true;
+      }
+
+      function showSuccess() {
+        authPanel.classList.add("hidden");
+        successPanel.classList.remove("hidden");
+        clearMessage();
+      }
+
+      async function saveApiKeyToGarmin(apiKey) {
+        if (!window.garmin || !window.garmin.settings || typeof window.garmin.settings.set !== "function") {
+          throw new Error("Garmin settings API is not available. Open this page from the Connect IQ app.");
+        }
+        await window.garmin.settings.set("api_key", apiKey);
+      }
+
+      async function fetchApiKey(client, userId) {
+        var result = await client
+          .from("profiles")
+          .select("api_key")
+          .eq("id", userId)
+          .single();
+
+        if (result.error) {
+          throw new Error(result.error.message || "Could not load your profile.");
+        }
+        if (!result.data || !result.data.api_key) {
+          throw new Error("No API key found on your profile. Contact support.");
+        }
+        return result.data.api_key;
+      }
+
+      async function connectSession(client, session) {
+        if (!session || !session.user) {
+          throw new Error("Sign-in did not return a valid session.");
+        }
+
+        var apiKey = await fetchApiKey(client, session.user.id);
+        await saveApiKeyToGarmin(apiKey);
+        showSuccess();
+      }
+
+      form.addEventListener("submit", async function (event) {
+        event.preventDefault();
+        clearMessage();
+
+        if (!validateConfig()) {
+          return;
+        }
+
+        var email = document.getElementById("email").value.trim();
+        var password = document.getElementById("password").value;
+
+        if (!validateForm(email, password)) {
+          return;
+        }
+
+        var client = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+        setLoading(true);
+
+        try {
+          if (mode === "login") {
+            var signInResult = await client.auth.signInWithPassword({
+              email: email,
+              password: password
+            });
+
+            if (signInResult.error) {
+              throw new Error(signInResult.error.message);
+            }
+
+            await connectSession(client, signInResult.data.session);
+          } else {
+            var signUpResult = await client.auth.signUp({
+              email: email,
+              password: password
+            });
+
+            if (signUpResult.error) {
+              throw new Error(signUpResult.error.message);
+            }
+
+            if (signUpResult.data.session) {
+              await connectSession(client, signUpResult.data.session);
+            } else {
+              showMessage(
+                "Account created! Check your email to confirm, then sign in here.",
+                "success"
+              );
+            }
+          }
+        } catch (err) {
+          showMessage(err.message || "Something went wrong. Please try again.", "error");
+        } finally {
+          setLoading(false);
+        }
+      });
+    })();
+  </script>
+</body>
+</html>
