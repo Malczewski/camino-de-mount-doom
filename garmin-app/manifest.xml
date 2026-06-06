@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<iq:manifest xmlns:iq="http://www.garmin.com/xml/connectiq" version="3">
+    <iq:application
+        entry="App"
+        id="f47ac10b-58cc-4372-a567-0e02b2c3d479"
+        launcherIcon="@Drawables.LauncherIcon"
+        minApiLevel="3.4.0"
+        name="@Strings.AppName"
+        type="background"
+        version="1.0.0"
+        settingsView="YOUR_AUTH_PAGE_URL">
+
+        <iq:products>
+            <iq:product id="fenix7"/>
+            <iq:product id="fenix7pro"/>
+            <iq:product id="fenix7s"/>
+            <iq:product id="fenix7x"/>
+            <iq:product id="fr965"/>
+            <iq:product id="fr955"/>
+            <iq:product id="venu3"/>
+            <iq:product id="venu3s"/>
+            <iq:product id="epix2"/>
+            <iq:product id="epix2pro42mm"/>
+            <iq:product id="epix2pro47mm"/>
+            <iq:product id="vivoactive5"/>
+        </iq:products>
+
+        <iq:permissions>
+            <iq:uses-permission id="com.garmin.permission.FIT_CONTRIBUTOR"/>
+            <iq:uses-permission id="com.garmin.permission.BACKGROUND_SYNC"/>
+            <iq:uses-permission id="com.garmin.permission.COMMUNICATIONS"/>
+        </iq:permissions>
+
+        <iq:languages>
+            <iq:language>eng</iq:language>
+        </iq:languages>
+
+        <iq:barrels/>
+    </iq:application>
+</iq:manifest>
