@@ -1,0 +1,5 @@
+<strings>
+    <string id="AppName">Camino de Mount Doom</string>
+    <string id="ApiKeyTitle">API Key</string>
+    <string id="ApiKeyPrompt">Set via the Connect IQ settings page after signing in</string>
+</strings>
