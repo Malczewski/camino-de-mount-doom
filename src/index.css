@@ -350,15 +350,23 @@ input:focus {
   pointer-events: none;
 }
 
+.map-canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+}
+
 .map-markers {
   position: absolute;
   inset: 0;
   pointer-events: none;
 }
 
+/* Positioned in screen pixels via left/top by repositionMarkers(); the container
+   is never scaled, so the chip keeps a constant visual size at any zoom. */
 .map-marker {
   position: absolute;
-  transform: translate(-50%, -50%) scale(calc(1 / var(--map-scale, 1)));
+  transform: translate(-50%, -50%);
 }
 
 .marker-dot {

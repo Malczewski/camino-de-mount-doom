@@ -23,6 +23,9 @@ interface Transform {
 
 const MAX_ZOOM_FACTOR = 4;
 
+const WALKED_COLOR = "rgba(60, 190, 90, 0.80)";
+const REMAINING_COLOR = "rgba(210, 55, 55, 0.65)";
+
 export default function Map({
   members,
   currentUserId,
@@ -31,15 +34,16 @@ export default function Map({
   onActiveGroupChange,
 }: MapProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
-  // Canvas renders only the visible slice of the map image — constant viewport-sized
-  // GPU memory regardless of zoom, eliminating the tile-memory-exceeded black squares.
+  // Canvas renders the map image AND the route path — everything is rasterized
+  // at viewport resolution every frame, so GPU texture memory is constant and
+  // bounded regardless of zoom. No large scaled compositor layer exists, so the
+  // compositor never evicts the header/dropdown textures (the source of flicker).
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  // Hidden <img> is the decode source for drawImage; never in the compositor layer.
+  // Hidden <img> is the decode source for drawImage; never composited.
   const imageRef = useRef<HTMLImageElement>(null);
-  // Lightweight overlay (SVG path + markers only, no large bitmap).
-  const overlayRef = useRef<HTMLDivElement>(null);
-  const walkedPathRef = useRef<SVGPathElement>(null);
-  const remainingPathRef = useRef<SVGPathElement>(null);
+  // Markers live in a viewport-sized, NON-scaled container and are positioned
+  // individually in screen pixels — each is a tiny fixed-size layer.
+  const markersRef = useRef<HTMLDivElement>(null);
 
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [routeConfig, setRouteConfig] = useState<RouteConfig>(loadRouteConfig);
@@ -68,14 +72,20 @@ export default function Map({
     return () => window.removeEventListener("storage", handler);
   }, []);
 
+  // Draw the visible slice of the map + the route path onto the canvas at
+  // viewport resolution. Path strokes use the current transform so they stay
+  // pinned to map features while remaining crisp at any zoom.
   const drawMap = useCallback(() => {
     const canvas = canvasRef.current;
     const img = imageRef.current;
     if (!canvas || !img || !img.naturalWidth) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
     const t = transformRef.current;
     const dpr = window.devicePixelRatio || 1;
+
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = "high";
@@ -86,47 +96,70 @@ export default function Map({
       img.naturalWidth * t.scale * dpr,
       img.naturalHeight * t.scale * dpr,
     );
+
+    // Route path — Path2D is built in image-pixel coords; the ctx transform maps
+    // image space → device space, so we draw the same coords the SVG used.
+    const member = membersRef.current.find((m) => m.id === currentUserIdRef.current);
+    const steps = member?.group_steps ?? 0;
+    const { walked, remaining } = splitRoutePath(
+      steps,
+      routeConfigRef.current,
+      img.naturalWidth,
+      img.naturalHeight,
+    );
+
+    ctx.setTransform(t.scale * dpr, 0, 0, t.scale * dpr, t.x * dpr, t.y * dpr);
+    ctx.lineCap = "round";
+    ctx.lineJoin = "round";
+    // lineWidth/dash are in image units; multiplying by 1/scale keeps the on-screen
+    // stroke a constant ~3 CSS px at any zoom.
+    const sw = 3 / t.scale;
+
+    if (remaining) {
+      ctx.setLineDash([sw * 4, sw * 2.5]);
+      ctx.lineWidth = sw;
+      ctx.strokeStyle = REMAINING_COLOR;
+      ctx.stroke(new Path2D(remaining));
+    }
+    if (walked) {
+      ctx.setLineDash([]);
+      ctx.lineWidth = sw;
+      ctx.strokeStyle = WALKED_COLOR;
+      ctx.stroke(new Path2D(walked));
+    }
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
   }, []);
 
-  const applyTransform = useCallback((t: Transform) => {
-    transformRef.current = t;
-    const viewport = viewportRef.current;
-    const overlay = overlayRef.current;
-    if (!viewport) return;
-
-    drawMap();
-
-    if (overlay) {
-      overlay.style.transform = `translate(${t.x}px, ${t.y}px) scale(${t.scale})`;
+  // Position each marker in screen pixels. The container is never scaled, so the
+  // marker chips stay a fixed visual size with no counter-scaling needed.
+  const repositionMarkers = useCallback(() => {
+    const container = markersRef.current;
+    if (!container) return;
+    const t = transformRef.current;
+    for (const child of Array.from(container.children) as HTMLElement[]) {
+      const ix = Number(child.dataset.ix);
+      const iy = Number(child.dataset.iy);
+      if (Number.isNaN(ix) || Number.isNaN(iy)) continue;
+      child.style.left = `${t.x + ix * t.scale}px`;
+      child.style.top = `${t.y + iy * t.scale}px`;
     }
-    viewport.style.setProperty("--map-scale", String(t.scale));
+  }, []);
 
-    const sw = 3 / t.scale;
-    const walked = walkedPathRef.current;
-    const remaining = remainingPathRef.current;
-    if (walked) walked.style.strokeWidth = String(sw);
-    if (remaining) {
-      remaining.style.strokeWidth = String(sw);
-      remaining.style.strokeDasharray = `${sw * 4} ${sw * 2.5}`;
-    }
-  }, [drawMap]);
+  const applyTransform = useCallback(
+    (t: Transform) => {
+      transformRef.current = t;
+      drawMap();
+      repositionMarkers();
+    },
+    [drawMap, repositionMarkers],
+  );
 
-  // After imageSize is set the overlay and SVG paths are mounted for the first time.
-  // Apply the current transform and stroke widths so the first paint is correct.
+  // Redraw path and reposition markers when data/route/size changes (transform unchanged).
   useLayoutEffect(() => {
     if (imageSize.width === 0) return;
-    const t = transformRef.current;
-    const overlay = overlayRef.current;
-    if (overlay) overlay.style.transform = `translate(${t.x}px, ${t.y}px) scale(${t.scale})`;
-    const sw = 3 / t.scale;
-    const walked = walkedPathRef.current;
-    const remaining = remainingPathRef.current;
-    if (walked) walked.style.strokeWidth = String(sw);
-    if (remaining) {
-      remaining.style.strokeWidth = String(sw);
-      remaining.style.strokeDasharray = `${sw * 4} ${sw * 2.5}`;
-    }
-  }, [imageSize]);
+    drawMap();
+    repositionMarkers();
+  }, [members, routeConfig, imageSize, currentUserId, drawMap, repositionMarkers]);
 
   const getScaleLimits = useCallback(() => {
     return { min: fitScaleRef.current, max: coverScaleRef.current * MAX_ZOOM_FACTOR };
@@ -142,8 +175,8 @@ export default function Map({
     const vh = viewport.clientHeight;
     const dpr = window.devicePixelRatio || 1;
 
-    // Size canvas to the viewport in physical pixels for crisp rendering.
-    // This never changes regardless of zoom — the key to no GPU memory overflow.
+    // Canvas is sized to the viewport in physical pixels — never to the image.
+    // This is what keeps GPU memory constant across all zoom levels.
     canvas.width = Math.round(vw * dpr);
     canvas.height = Math.round(vh * dpr);
     canvas.style.width = `${vw}px`;
@@ -296,15 +329,6 @@ export default function Map({
     pinchStart.current = null;
   };
 
-  // ─── Path rendering ───────────────────────────────────────────────────────
-  const currentMember = members.find((m) => m.id === currentUserId);
-  const currentSteps = currentMember?.group_steps ?? 0;
-
-  const { walked: walkedPath, remaining: remainingPath } =
-    imageSize.width > 0
-      ? splitRoutePath(currentSteps, routeConfig, imageSize.width, imageSize.height)
-      : { walked: "", remaining: "" };
-
   return (
     <div
       ref={viewportRef}
@@ -318,11 +342,10 @@ export default function Map({
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      {/* Canvas: always viewport-sized, draws the visible slice of the image.
-          GPU memory = viewport × DPR, not image × zoom × DPR. */}
+      {/* Map + path: viewport-sized canvas. GPU memory = viewport × DPR, constant. */}
       <canvas ref={canvasRef} className="map-canvas" />
 
-      {/* Hidden image is the decode source for drawImage; never composited. */}
+      {/* Hidden decode source for drawImage; never composited. */}
       <img
         ref={imageRef}
         src="/map.jpg"
@@ -331,37 +354,18 @@ export default function Map({
         onLoad={fitToViewport}
       />
 
-      {/* Lightweight overlay: only SVG strokes + marker dots — no large bitmap.
-          Separate compositor layer means no quality re-rasterization of image pixels. */}
+      {/* Markers: viewport-sized, NON-scaled container. Each chip is positioned in
+          screen pixels via repositionMarkers() and stays a fixed visual size. */}
       {imageSize.width > 0 && (
-        <div
-          ref={overlayRef}
-          className="map-overlay"
-          style={{ width: imageSize.width, height: imageSize.height }}
-        >
-          <svg
-            className="map-path-svg"
-            viewBox={`0 0 ${imageSize.width} ${imageSize.height}`}
-            style={{
-              position: "absolute",
-              inset: 0,
-              width: imageSize.width,
-              height: imageSize.height,
-              pointerEvents: "none",
-              overflow: "hidden",
-            }}
-          >
-            <path ref={walkedPathRef} fill="none" d={walkedPath || "M 0 0"} className="path-walked" />
-            <path ref={remainingPathRef} fill="none" d={remainingPath || "M 0 0"} className="path-remaining" />
-          </svg>
-
+        <div ref={markersRef} className="map-markers">
           {members.map((member) => {
             const pos = getRoutePosition(member.group_steps, routeConfig);
             return (
               <div
                 key={member.id}
                 className="map-marker"
-                style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+                data-ix={(pos.x / 100) * imageSize.width}
+                data-iy={(pos.y / 100) * imageSize.height}
               >
                 <span className={`marker-dot${member.id === currentUserId ? " self" : ""}`} />
                 <span className="marker-label">
