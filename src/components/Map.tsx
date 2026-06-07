@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   loadRouteConfig,
   getRoutePosition,
@@ -31,17 +31,35 @@ export default function Map({
   onActiveGroupChange,
 }: MapProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
+  // Canvas renders only the visible slice of the map image — constant viewport-sized
+  // GPU memory regardless of zoom, eliminating the tile-memory-exceeded black squares.
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  // Hidden <img> is the decode source for drawImage; never in the compositor layer.
   const imageRef = useRef<HTMLImageElement>(null);
-  const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 1 });
+  // Lightweight overlay (SVG path + markers only, no large bitmap).
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const walkedPathRef = useRef<SVGPathElement>(null);
+  const remainingPathRef = useRef<SVGPathElement>(null);
+
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
-  const [dragging, setDragging] = useState(false);
+  const [routeConfig, setRouteConfig] = useState<RouteConfig>(loadRouteConfig);
+
+  const transformRef = useRef<Transform>({ x: 0, y: 0, scale: 1 });
   const draggingRef = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
   const pinchStart = useRef<{ distance: number; scale: number } | null>(null);
   const fitScaleRef = useRef(1);
-  const [routeConfig, setRouteConfig] = useState<RouteConfig>(loadRouteConfig);
+  const coverScaleRef = useRef(1);
+  const activePointers = useRef(new Set<number>());
+  const hasCenteredRef = useRef(false);
 
-  // Reload route config when editor updates it in another tab
+  const membersRef = useRef(members);
+  membersRef.current = members;
+  const currentUserIdRef = useRef(currentUserId);
+  currentUserIdRef.current = currentUserId;
+  const routeConfigRef = useRef(routeConfig);
+  routeConfigRef.current = routeConfig;
+
   useEffect(() => {
     const handler = (e: StorageEvent) => {
       if (e.key === "route-config") setRouteConfig(loadRouteConfig());
@@ -50,26 +68,128 @@ export default function Map({
     return () => window.removeEventListener("storage", handler);
   }, []);
 
+  const drawMap = useCallback(() => {
+    const canvas = canvasRef.current;
+    const img = imageRef.current;
+    if (!canvas || !img || !img.naturalWidth) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const t = transformRef.current;
+    const dpr = window.devicePixelRatio || 1;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(
+      img,
+      t.x * dpr,
+      t.y * dpr,
+      img.naturalWidth * t.scale * dpr,
+      img.naturalHeight * t.scale * dpr,
+    );
+  }, []);
+
+  const applyTransform = useCallback((t: Transform) => {
+    transformRef.current = t;
+    const viewport = viewportRef.current;
+    const overlay = overlayRef.current;
+    if (!viewport) return;
+
+    drawMap();
+
+    if (overlay) {
+      overlay.style.transform = `translate(${t.x}px, ${t.y}px) scale(${t.scale})`;
+    }
+    viewport.style.setProperty("--map-scale", String(t.scale));
+
+    const sw = 3 / t.scale;
+    const walked = walkedPathRef.current;
+    const remaining = remainingPathRef.current;
+    if (walked) walked.style.strokeWidth = String(sw);
+    if (remaining) {
+      remaining.style.strokeWidth = String(sw);
+      remaining.style.strokeDasharray = `${sw * 4} ${sw * 2.5}`;
+    }
+  }, [drawMap]);
+
+  // After imageSize is set the overlay and SVG paths are mounted for the first time.
+  // Apply the current transform and stroke widths so the first paint is correct.
+  useLayoutEffect(() => {
+    if (imageSize.width === 0) return;
+    const t = transformRef.current;
+    const overlay = overlayRef.current;
+    if (overlay) overlay.style.transform = `translate(${t.x}px, ${t.y}px) scale(${t.scale})`;
+    const sw = 3 / t.scale;
+    const walked = walkedPathRef.current;
+    const remaining = remainingPathRef.current;
+    if (walked) walked.style.strokeWidth = String(sw);
+    if (remaining) {
+      remaining.style.strokeWidth = String(sw);
+      remaining.style.strokeDasharray = `${sw * 4} ${sw * 2.5}`;
+    }
+  }, [imageSize]);
+
   const getScaleLimits = useCallback(() => {
-    const fit = fitScaleRef.current;
-    return { min: fit, max: fit * MAX_ZOOM_FACTOR };
+    return { min: fitScaleRef.current, max: coverScaleRef.current * MAX_ZOOM_FACTOR };
   }, []);
 
   const fitToViewport = useCallback(() => {
     const viewport = viewportRef.current;
-    const image = imageRef.current;
-    if (!viewport || !image || !image.naturalWidth) return;
+    const canvas = canvasRef.current;
+    const img = imageRef.current;
+    if (!viewport || !canvas || !img || !img.naturalWidth) return;
 
     const vw = viewport.clientWidth;
     const vh = viewport.clientHeight;
-    const scale = Math.min(vw / image.naturalWidth, vh / image.naturalHeight);
-    const x = (vw - image.naturalWidth * scale) / 2;
-    const y = (vh - image.naturalHeight * scale) / 2;
+    const dpr = window.devicePixelRatio || 1;
 
-    fitScaleRef.current = scale;
-    setImageSize({ width: image.naturalWidth, height: image.naturalHeight });
-    setTransform({ x, y, scale });
-  }, []);
+    // Size canvas to the viewport in physical pixels for crisp rendering.
+    // This never changes regardless of zoom — the key to no GPU memory overflow.
+    canvas.width = Math.round(vw * dpr);
+    canvas.height = Math.round(vh * dpr);
+    canvas.style.width = `${vw}px`;
+    canvas.style.height = `${vh}px`;
+
+    const containScale = Math.min(vw / img.naturalWidth, vh / img.naturalHeight);
+    const coverScale = Math.max(vw / img.naturalWidth, vh / img.naturalHeight);
+
+    fitScaleRef.current = containScale;
+    coverScaleRef.current = coverScale;
+    setImageSize({ width: img.naturalWidth, height: img.naturalHeight });
+
+    const currentMember = membersRef.current.find((m) => m.id === currentUserIdRef.current);
+    let x: number;
+    let y: number;
+
+    if (currentMember) {
+      hasCenteredRef.current = true;
+      const pos = getRoutePosition(currentMember.group_steps ?? 0, routeConfigRef.current);
+      x = vw / 2 - (pos.x / 100) * img.naturalWidth * coverScale;
+      y = vh / 2 - (pos.y / 100) * img.naturalHeight * coverScale;
+    } else {
+      x = (vw - img.naturalWidth * coverScale) / 2;
+      y = (vh - img.naturalHeight * coverScale) / 2;
+    }
+
+    applyTransform({ x, y, scale: coverScale });
+  }, [applyTransform]);
+
+  useEffect(() => {
+    if (hasCenteredRef.current || imageSize.width === 0) return;
+    const currentMember = members.find((m) => m.id === currentUserId);
+    if (!currentMember) return;
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    hasCenteredRef.current = true;
+    const t = transformRef.current;
+    const pos = getRoutePosition(currentMember.group_steps ?? 0, routeConfig);
+    const vw = viewport.clientWidth;
+    const vh = viewport.clientHeight;
+    applyTransform({
+      ...t,
+      x: vw / 2 - (pos.x / 100) * imageSize.width * t.scale,
+      y: vh / 2 - (pos.y / 100) * imageSize.height * t.scale,
+    });
+  }, [members, currentUserId, imageSize, routeConfig, applyTransform]);
 
   useEffect(() => {
     fitToViewport();
@@ -81,32 +201,36 @@ export default function Map({
     if (e.button !== 0 && e.pointerType !== "touch") return;
     e.preventDefault();
     viewportRef.current?.setPointerCapture(e.pointerId);
-    draggingRef.current = true;
-    setDragging(true);
-    setTransform((t) => {
-      dragStart.current = {
-        x: e.clientX,
-        y: e.clientY,
-        tx: t.x,
-        ty: t.y,
-      };
-      return t;
-    });
+    activePointers.current.add(e.pointerId);
+
+    if (activePointers.current.size === 1) {
+      const t = transformRef.current;
+      draggingRef.current = true;
+      viewportRef.current?.classList.add("dragging");
+      dragStart.current = { x: e.clientX, y: e.clientY, tx: t.x, ty: t.y };
+    } else {
+      draggingRef.current = false;
+      viewportRef.current?.classList.remove("dragging");
+    }
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!draggingRef.current) return;
+    if (!draggingRef.current || activePointers.current.size > 1) return;
     e.preventDefault();
-    setTransform((t) => ({
+    const t = transformRef.current;
+    applyTransform({
       ...t,
       x: dragStart.current.tx + (e.clientX - dragStart.current.x),
       y: dragStart.current.ty + (e.clientY - dragStart.current.y),
-    }));
+    });
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
-    draggingRef.current = false;
-    setDragging(false);
+    activePointers.current.delete(e.pointerId);
+    if (activePointers.current.size === 0) {
+      draggingRef.current = false;
+      viewportRef.current?.classList.remove("dragging");
+    }
     viewportRef.current?.releasePointerCapture(e.pointerId);
   };
 
@@ -119,20 +243,18 @@ export default function Map({
     const mx = e.clientX - rect.left;
     const my = e.clientY - rect.top;
 
-    // Normalize wheel deltas (pixels, lines, pages) and trackpad pinch (ctrl+wheel).
     const unit =
       e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? viewport.clientHeight : 1;
     const factor = Math.exp(-e.deltaY * unit * 0.002);
 
-    setTransform((t) => {
-      const { min, max } = getScaleLimits();
-      const nextScale = Math.min(max, Math.max(min, t.scale * factor));
-      const ratio = nextScale / t.scale;
-      return {
-        scale: nextScale,
-        x: mx - (mx - t.x) * ratio,
-        y: my - (my - t.y) * ratio,
-      };
+    const t = transformRef.current;
+    const { min, max } = getScaleLimits();
+    const nextScale = Math.min(max, Math.max(min, t.scale * factor));
+    const ratio = nextScale / t.scale;
+    applyTransform({
+      scale: nextScale,
+      x: mx - (mx - t.x) * ratio,
+      y: my - (my - t.y) * ratio,
     });
   };
 
@@ -140,7 +262,7 @@ export default function Map({
     if (e.touches.length === 2) {
       const [a, b] = [e.touches[0], e.touches[1]];
       const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-      pinchStart.current = { distance, scale: transform.scale };
+      pinchStart.current = { distance, scale: transformRef.current.scale };
     }
   };
 
@@ -152,10 +274,7 @@ export default function Map({
     const distance = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
     const ratio = distance / pinchStart.current.distance;
     const { min, max } = getScaleLimits();
-    const nextScale = Math.min(
-      max,
-      Math.max(min, pinchStart.current.scale * ratio),
-    );
+    const nextScale = Math.min(max, Math.max(min, pinchStart.current.scale * ratio));
 
     const viewport = viewportRef.current;
     if (!viewport) return;
@@ -164,22 +283,17 @@ export default function Map({
     const mx = (a.clientX + b.clientX) / 2 - rect.left;
     const my = (a.clientY + b.clientY) / 2 - rect.top;
 
-    setTransform((t) => {
-      const scaleRatio = nextScale / t.scale;
-      return {
-        scale: nextScale,
-        x: mx - (mx - t.x) * scaleRatio,
-        y: my - (my - t.y) * scaleRatio,
-      };
+    const t = transformRef.current;
+    const scaleRatio = nextScale / t.scale;
+    applyTransform({
+      scale: nextScale,
+      x: mx - (mx - t.x) * scaleRatio,
+      y: my - (my - t.y) * scaleRatio,
     });
   };
 
   const onTouchEnd = () => {
     pinchStart.current = null;
-  };
-
-  const stageStyle = {
-    transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
   };
 
   // ─── Path rendering ───────────────────────────────────────────────────────
@@ -191,14 +305,10 @@ export default function Map({
       ? splitRoutePath(currentSteps, routeConfig, imageSize.width, imageSize.height)
       : { walked: "", remaining: "" };
 
-  // Keep stroke visually constant regardless of zoom — divide by scale
-  const sw = 3 / transform.scale;
-  const dashArray = `${sw * 4} ${sw * 2.5}`;
-
   return (
     <div
       ref={viewportRef}
-      className={`map-viewport${dragging ? " dragging" : ""}`}
+      className="map-viewport"
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
@@ -208,71 +318,61 @@ export default function Map({
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
-      <div className="map-stage" style={stageStyle}>
-        <img
-          ref={imageRef}
-          src="/map.jpg"
-          alt="Middle-earth map"
-          className="map-image"
-          draggable={false}
-          onDragStart={(e) => e.preventDefault()}
-          onLoad={fitToViewport}
-        />
-        {imageSize.width > 0 && (
-          <div
-            className="map-markers"
-            style={{ width: imageSize.width, height: imageSize.height }}
+      {/* Canvas: always viewport-sized, draws the visible slice of the image.
+          GPU memory = viewport × DPR, not image × zoom × DPR. */}
+      <canvas ref={canvasRef} className="map-canvas" />
+
+      {/* Hidden image is the decode source for drawImage; never composited. */}
+      <img
+        ref={imageRef}
+        src="/map.jpg"
+        alt=""
+        style={{ display: "none" }}
+        onLoad={fitToViewport}
+      />
+
+      {/* Lightweight overlay: only SVG strokes + marker dots — no large bitmap.
+          Separate compositor layer means no quality re-rasterization of image pixels. */}
+      {imageSize.width > 0 && (
+        <div
+          ref={overlayRef}
+          className="map-overlay"
+          style={{ width: imageSize.width, height: imageSize.height }}
+        >
+          <svg
+            className="map-path-svg"
+            viewBox={`0 0 ${imageSize.width} ${imageSize.height}`}
+            style={{
+              position: "absolute",
+              inset: 0,
+              width: imageSize.width,
+              height: imageSize.height,
+              pointerEvents: "none",
+              overflow: "hidden",
+            }}
           >
-            {/* Route path */}
-            <svg
-              className="map-path-svg"
-              viewBox={`0 0 ${imageSize.width} ${imageSize.height}`}
-              style={{
-                position: "absolute",
-                inset: 0,
-                width: imageSize.width,
-                height: imageSize.height,
-                pointerEvents: "none",
-                overflow: "hidden",
-                // Isolate path repaints onto their own GPU layer so updating the
-                // route never forces the large image layer to re-rasterize (which
-                // briefly paints black tiles).
-                transform: "translateZ(0)",
-                backfaceVisibility: "hidden",
-              }}
-            >
-              <path fill="none" d={walkedPath || "M 0 0"} className="path-walked" style={{ strokeWidth: sw }} />
-              <path fill="none" d={remainingPath || "M 0 0"} className="path-remaining" style={{ strokeWidth: sw, strokeDasharray: dashArray }} />
-            </svg>
+            <path ref={walkedPathRef} fill="none" d={walkedPath || "M 0 0"} className="path-walked" />
+            <path ref={remainingPathRef} fill="none" d={remainingPath || "M 0 0"} className="path-remaining" />
+          </svg>
 
-            {/* Member markers */}
-            {members.map((member) => {
-              const pos = getRoutePosition(member.group_steps, routeConfig);
-              return (
-                <div
-                  key={member.id}
-                  className="map-marker"
-                  style={{
-                    left: `${pos.x}%`,
-                    top: `${pos.y}%`,
-                    // Counter-scale so dot + label stay visually constant regardless of zoom
-                    transform: `translate(-50%, -50%) scale(${1 / transform.scale})`,
-                  }}
-                >
-                  <span
-                    className={`marker-dot${member.id === currentUserId ? " self" : ""}`}
-                  />
-                  <span className="marker-label">
-                    {member.display_name || "Traveler"}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+          {members.map((member) => {
+            const pos = getRoutePosition(member.group_steps, routeConfig);
+            return (
+              <div
+                key={member.id}
+                className="map-marker"
+                style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+              >
+                <span className={`marker-dot${member.id === currentUserId ? " self" : ""}`} />
+                <span className="marker-label">
+                  {member.display_name || "Traveler"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
-      {/* Group selector — only shown when user is in more than one group */}
       {userGroups.length > 1 && (
         <div className="map-group-selector" onPointerDown={(e) => e.stopPropagation()}>
           <select

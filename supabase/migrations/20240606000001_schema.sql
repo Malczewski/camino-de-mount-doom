@@ -1,4 +1,4 @@
--- Camino de Mt.Doom — core schema
+-- Camino de Mount Doom — core schema
 -- Idempotent: safe if you already ran supabase/init.sql manually.
 
 CREATE TABLE IF NOT EXISTS groups (

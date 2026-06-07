@@ -358,7 +358,7 @@ input:focus {
 
 .map-marker {
   position: absolute;
-  transform: translate(-50%, -50%);
+  transform: translate(-50%, -50%) scale(calc(1 / var(--map-scale, 1)));
 }
 
 .marker-dot {

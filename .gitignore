@@ -4,3 +4,4 @@ dist
 *.local
 supabase/.temp
 garmin-app/bin/
+garmin-app/developer_key

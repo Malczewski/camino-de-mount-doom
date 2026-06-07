@@ -137,7 +137,7 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
         <h1>{mode === "login" ? "Sign in" : "Sign up"}</h1>
         <p className="subtitle">
           {mode === "login"
-            ? "Camino de Mt.Doom to Mount Doom"
+            ? "Bag End to Mount Doom"
             : "Create an account to begin your journey"}
         </p>
 

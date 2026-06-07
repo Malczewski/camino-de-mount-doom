@@ -1,4 +1,4 @@
--- Camino de Mt.Doom — full database setup (one-shot)
+-- Camino de Mount Doom — full database setup (one-shot)
 -- Supabase Dashboard → SQL Editor → paste and run this entire file.
 --
 -- Prefer `supabase db push` when using the CLI; migrations live in supabase/migrations/.

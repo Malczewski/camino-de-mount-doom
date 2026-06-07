@@ -1,4 +1,4 @@
--- Row Level Security for Camino de Mt.Doom
+-- Row Level Security for Camino de Mount Doom
 -- Idempotent: drops and recreates policies.
 
 CREATE OR REPLACE FUNCTION public.current_user_group_id()

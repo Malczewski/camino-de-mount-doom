@@ -1,4 +1,4 @@
-# Camino de Mt.Doom
+# Camino de Mount Doom
 
 **Demo:** [https://camino-de-mount-doom.netlify.app/](https://camino-de-mount-doom.netlify.app/)
 
@@ -156,7 +156,7 @@ monkeyc -o camino-de-mount-doom.prg -f monkey.jungle -y developer_key.der
 ```
 
 - Sideload `camino-de-mount-doom.prg` via Garmin Connect or Garmin Express for private use.
-- Open **My Device → Camino de Mt.Doom → Settings** in Garmin Connect and sign in.
+- Open **My Device → Camino de Mount Doom → Settings** in Garmin Connect and sign in.
 - Background sync runs on a temporal event (default: hourly; minimum on most devices: 5 minutes for testing).
 
 **Permissions** (in `manifest.xml`): `BACKGROUND_SYNC`, `COMMUNICATIONS`, `FIT_CONTRIBUTOR`.
