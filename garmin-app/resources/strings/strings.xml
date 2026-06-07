@@ -4,4 +4,18 @@
     <string id="ApiKeyPrompt">Sign in at camino-de-mount-doom.netlify.app, open your profile, and copy the API key shown there.</string>
     <string id="ShareStepsTitle">Share My Steps</string>
     <string id="ShareStepsPrompt">Allow this app to upload your daily step count to your group. Required for progress tracking. Privacy policy: camino-de-mount-doom.netlify.app/privacy-policy.html</string>
+    <string id="NoApiKey">No API Key
+Set in Garmin
+Connect IQ app</string>
+    <string id="EnableSharingPrompt">Enable steps
+sharing in
+app settings</string>
+    <string id="Loading">Loading...</string>
+    <string id="NoGroups">No groups
+Join one in
+the web app</string>
+    <string id="GroupFallback">Group</string>
+    <string id="NoMembers">No members</string>
+    <string id="WebApp">Web App</string>
+    <string id="PressToOpen">Press to open</string>
 </strings>

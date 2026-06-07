@@ -1,0 +1,21 @@
+<strings>
+    <string id="AppName">Camino de Mount Doom</string>
+    <string id="ApiKeyTitle">API-ключ</string>
+    <string id="ApiKeyPrompt">Увійдіть на camino-de-mount-doom.netlify.app, відкрийте профіль і скопіюйте API-ключ.</string>
+    <string id="ShareStepsTitle">Ділитися кроками</string>
+    <string id="ShareStepsPrompt">Дозволити завантажувати кількість кроків до групи. Потрібно для відстеження прогресу. Політика: camino-de-mount-doom.netlify.app/privacy-policy.html</string>
+    <string id="NoApiKey">Немає API-ключа
+Встановіть в Garmin
+Connect IQ</string>
+    <string id="EnableSharingPrompt">Увімкніть доступ
+до кроків у
+налаштуваннях</string>
+    <string id="Loading">Завантаження...</string>
+    <string id="NoGroups">Немає груп
+Приєднайтесь
+у вебзастосунку</string>
+    <string id="GroupFallback">Група</string>
+    <string id="NoMembers">Немає учасників</string>
+    <string id="WebApp">Вебзастосунок</string>
+    <string id="PressToOpen">Натисніть для відкриття</string>
+</strings>

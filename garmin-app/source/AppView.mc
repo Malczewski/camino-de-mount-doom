@@ -77,7 +77,7 @@ class AppView extends WatchUi.View {
         var hasKey = apiKey instanceof Lang.String && (apiKey as Lang.String).length() > 0;
 
         if (!hasKey) {
-            drawCentered(dc, "No API Key\nSet in Garmin\nConnect IQ app");
+            drawCentered(dc, WatchUi.loadResource(Rez.Strings.NoApiKey) as Lang.String);
             return;
         }
 
@@ -85,12 +85,12 @@ class AppView extends WatchUi.View {
         var consent = share instanceof Lang.Boolean && (share as Lang.Boolean);
 
         if (!consent) {
-            drawCentered(dc, "Enable steps\nsharing in\napp settings");
+            drawCentered(dc, WatchUi.loadResource(Rez.Strings.EnableSharingPrompt) as Lang.String);
             return;
         }
 
         if (gLoadingData) {
-            drawCentered(dc, "Loading...");
+            drawCentered(dc, WatchUi.loadResource(Rez.Strings.Loading) as Lang.String);
             return;
         }
 
@@ -101,7 +101,7 @@ class AppView extends WatchUi.View {
 
         var groups = gGroupData;
         if (groups == null || groups.size() == 0) {
-            drawCentered(dc, "No groups\nJoin one in\nthe web app");
+            drawCentered(dc, WatchUi.loadResource(Rez.Strings.NoGroups) as Lang.String);
             return;
         }
 
@@ -132,7 +132,7 @@ class AppView extends WatchUi.View {
 
         // Group name
         var gnameObj = group.get("name");
-        var gname = gnameObj instanceof Lang.String ? gnameObj as Lang.String : "Group";
+        var gname = gnameObj instanceof Lang.String ? gnameObj as Lang.String : WatchUi.loadResource(Rez.Strings.GroupFallback) as Lang.String;
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx, (H * 0.12).toNumber(), Graphics.FONT_SMALL, gname,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
@@ -143,7 +143,7 @@ class AppView extends WatchUi.View {
         var count = members.size() > 3 ? 3 : members.size();
         if (count == 0) {
             dc.setColor(0x888888, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, (H * 0.55).toNumber(), Graphics.FONT_TINY, "No members",
+            dc.drawText(cx, (H * 0.55).toNumber(), Graphics.FONT_TINY, WatchUi.loadResource(Rez.Strings.NoMembers) as Lang.String,
                 Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
             return;
         }
@@ -208,7 +208,7 @@ class AppView extends WatchUi.View {
         var cx = W / 2;
 
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, (H * 0.33).toNumber(), Graphics.FONT_MEDIUM, "Web App",
+        dc.drawText(cx, (H * 0.33).toNumber(), Graphics.FONT_MEDIUM, WatchUi.loadResource(Rez.Strings.WebApp) as Lang.String,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
         dc.setColor(0xAAAAAA, Graphics.COLOR_TRANSPARENT);
@@ -221,7 +221,7 @@ class AppView extends WatchUi.View {
 
         dc.setColor(0x4488FF, Graphics.COLOR_TRANSPARENT);
         dc.drawText(cx, (H * 0.77).toNumber(), Graphics.FONT_TINY,
-            "Press to open",
+            WatchUi.loadResource(Rez.Strings.PressToOpen) as Lang.String,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
