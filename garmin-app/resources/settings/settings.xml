@@ -1,5 +1,5 @@
 <settings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://developer.garmin.com/downloads/connect-iq/resources.xsd">
     <setting propertyKey="@Properties.api_key" title="@Strings.ApiKeyTitle" prompt="@Strings.ApiKeyPrompt">
-        <settingConfig type="alphaNumeric" readOnly="true"/>
+        <settingConfig type="alphaNumeric"/>
     </setting>
 </settings>

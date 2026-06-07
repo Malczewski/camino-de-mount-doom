@@ -1,7 +1,11 @@
 using Toybox.Application;
 using Toybox.Background;
+using Toybox.Communications;
+using Toybox.Lang;
 using Toybox.System;
 using Toybox.Time;
+
+const SETTINGS_URL = "https://camino-de-mount-doom.netlify.app/garmin-auth.html";
 
 class App extends Application.AppBase {
 
@@ -9,14 +13,18 @@ class App extends Application.AppBase {
         AppBase.initialize();
     }
 
-    function onStart(state as Dictionary?) as Void {
+    function onStart(state as Lang.Dictionary?) as Void {
         registerBackgroundSync();
+        var apiKey = Application.Storage.getValue("api_key");
+        if (apiKey == null || !(apiKey instanceof Lang.String) || (apiKey as Lang.String).length() == 0) {
+            Communications.openWebPage(SETTINGS_URL, null, null);
+        }
     }
 
-    function onStop(state as Dictionary?) as Void {
+    function onStop(state as Lang.Dictionary?) as Void {
     }
 
-    function getServiceDelegate() as [System.ServiceDelegate] or Null {
+    function getServiceDelegate() as [System.ServiceDelegate] {
         return [new BackgroundService()] as [System.ServiceDelegate];
     }
 

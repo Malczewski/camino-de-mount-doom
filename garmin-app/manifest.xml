@@ -6,9 +6,8 @@
         launcherIcon="@Drawables.LauncherIcon"
         minApiLevel="3.4.0"
         name="@Strings.AppName"
-        type="background"
-        version="0.0.1"
-        settingsView="https://camino-de-mount-doom.netlify.app/garmin-auth.html">
+        type="watch-app"
+        version="0.0.1">
 
         <iq:products>
             <iq:product id="fenix7"/>
@@ -26,9 +25,8 @@
         </iq:products>
 
         <iq:permissions>
-            <iq:uses-permission id="com.garmin.permission.FIT_CONTRIBUTOR"/>
-            <iq:uses-permission id="com.garmin.permission.BACKGROUND_SYNC"/>
-            <iq:uses-permission id="com.garmin.permission.COMMUNICATIONS"/>
+            <iq:uses-permission id="Background"/>
+            <iq:uses-permission id="Communications"/>
         </iq:permissions>
 
         <iq:languages>

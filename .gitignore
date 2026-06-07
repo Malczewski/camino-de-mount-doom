@@ -3,3 +3,4 @@ dist
 .env.local
 *.local
 supabase/.temp
+garmin-app/bin/

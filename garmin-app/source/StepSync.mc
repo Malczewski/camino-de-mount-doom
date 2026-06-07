@@ -10,10 +10,10 @@ module StepSync {
 
     const EDGE_FUNCTION_URL = "https://wpkwqhbrvphjppfquqby.supabase.co/functions/v1/step-sync";
 
-    function sync() as Void {
-        var apiKey = Application.getApp().getProperty("api_key");
+    function sync(callback as Lang.Method) as Void {
+        var apiKey = Application.Storage.getValue("api_key");
 
-        if (apiKey == null || !(apiKey instanceof String) || (apiKey as String).length() == 0) {
+        if (apiKey == null || !(apiKey instanceof Lang.String) || (apiKey as Lang.String).length() == 0) {
             return;
         }
 
@@ -46,20 +46,14 @@ module StepSync {
                 EDGE_FUNCTION_URL,
                 payload,
                 options,
-                method(:onWebResponse)
+                callback
             );
         } catch (ex) {
             System.println("Step sync request failed to start");
         }
     }
 
-    function onWebResponse(responseCode as Number, data as Dictionary or String or Null) as Void {
-        if (responseCode < 200 || responseCode >= 300) {
-            System.println("Step sync failed with status " + responseCode);
-        }
-    }
-
-    private function todayIsoString() as String {
+    function todayIsoString() as Lang.String {
         var now = Time.now();
         var info = Time.Gregorian.info(now, Time.FORMAT_SHORT);
 
