@@ -1,10 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getMapPosition } from "../lib/mapPosition";
-import type { GroupMember } from "../lib/supabase";
+import {
+  loadRouteConfig,
+  getRoutePosition,
+  splitRoutePath,
+  type RouteConfig,
+} from "../lib/mapPosition";
+import type { Group, GroupMember } from "../lib/supabase";
 
 interface MapProps {
   members: GroupMember[];
   currentUserId: string;
+  userGroups: Group[];
+  activeGroupId: string | null;
+  onActiveGroupChange: (groupId: string | null) => void;
 }
 
 interface Transform {
@@ -15,7 +23,13 @@ interface Transform {
 
 const MAX_ZOOM_FACTOR = 4;
 
-export default function Map({ members, currentUserId }: MapProps) {
+export default function Map({
+  members,
+  currentUserId,
+  userGroups,
+  activeGroupId,
+  onActiveGroupChange,
+}: MapProps) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 1 });
@@ -25,6 +39,16 @@ export default function Map({ members, currentUserId }: MapProps) {
   const dragStart = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
   const pinchStart = useRef<{ distance: number; scale: number } | null>(null);
   const fitScaleRef = useRef(1);
+  const [routeConfig, setRouteConfig] = useState<RouteConfig>(loadRouteConfig);
+
+  // Reload route config when editor updates it in another tab
+  useEffect(() => {
+    const handler = (e: StorageEvent) => {
+      if (e.key === "route-config") setRouteConfig(loadRouteConfig());
+    };
+    window.addEventListener("storage", handler);
+    return () => window.removeEventListener("storage", handler);
+  }, []);
 
   const getScaleLimits = useCallback(() => {
     const fit = fitScaleRef.current;
@@ -158,6 +182,19 @@ export default function Map({ members, currentUserId }: MapProps) {
     transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
   };
 
+  // ─── Path rendering ───────────────────────────────────────────────────────
+  const currentMember = members.find((m) => m.id === currentUserId);
+  const currentSteps = currentMember?.total_steps ?? 0;
+
+  const { walked: walkedPath, remaining: remainingPath } =
+    imageSize.width > 0
+      ? splitRoutePath(currentSteps, routeConfig, imageSize.width, imageSize.height)
+      : { walked: "", remaining: "" };
+
+  // Keep stroke visually constant regardless of zoom — divide by scale
+  const sw = 3 / transform.scale;
+  const dashArray = `${sw * 4} ${sw * 2.5}`;
+
   return (
     <div
       ref={viewportRef}
@@ -186,8 +223,26 @@ export default function Map({ members, currentUserId }: MapProps) {
             className="map-markers"
             style={{ width: imageSize.width, height: imageSize.height }}
           >
+            {/* Route path */}
+            <svg
+              className="map-path-svg"
+              viewBox={`0 0 ${imageSize.width} ${imageSize.height}`}
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: imageSize.width,
+                height: imageSize.height,
+                pointerEvents: "none",
+                overflow: "visible",
+              }}
+            >
+              <path fill="none" d={walkedPath || "M 0 0"} className="path-walked" style={{ strokeWidth: sw }} />
+              <path fill="none" d={remainingPath || "M 0 0"} className="path-remaining" style={{ strokeWidth: sw, strokeDasharray: dashArray }} />
+            </svg>
+
+            {/* Member markers */}
             {members.map((member) => {
-              const pos = getMapPosition(member.total_steps);
+              const pos = getRoutePosition(member.total_steps, routeConfig);
               return (
                 <div
                   key={member.id}
@@ -206,6 +261,23 @@ export default function Map({ members, currentUserId }: MapProps) {
           </div>
         )}
       </div>
+
+      {/* Group selector — only shown when user is in more than one group */}
+      {userGroups.length > 1 && (
+        <div className="map-group-selector" onPointerDown={(e) => e.stopPropagation()}>
+          <select
+            value={activeGroupId ?? ""}
+            onChange={(e) => onActiveGroupChange(e.target.value || null)}
+          >
+            {userGroups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {members.length === 0 && (
         <div
           style={{
@@ -221,7 +293,9 @@ export default function Map({ members, currentUserId }: MapProps) {
             textAlign: "center",
           }}
         >
-          Join a group to see fellow travelers on the map
+          {userGroups.length === 0
+            ? "Join a group to see fellow travelers on the map"
+            : "No travelers in this fellowship yet"}
         </div>
       )}
     </div>

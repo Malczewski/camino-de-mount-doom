@@ -96,6 +96,9 @@ button {
   padding: 16px;
   max-width: 640px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
 .card {
@@ -400,4 +403,435 @@ input:focus {
   gap: 8px;
   flex-wrap: wrap;
   margin-top: 12px;
+}
+
+/* ─── Route path SVG ────────────────────────────────────────────────────── */
+
+.path-walked {
+  fill: none;
+  stroke: rgba(60, 190, 90, 0.80);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.path-remaining {
+  fill: none;
+  stroke: rgba(210, 55, 55, 0.65);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ─── Editor nav link ───────────────────────────────────────────────────── */
+
+.nav-tab-editor {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  font-size: 1rem;
+  padding: 8px 12px;
+  border-radius: 8px;
+  color: #424245;
+  opacity: 0.6;
+}
+
+.nav-tab-editor:hover {
+  opacity: 1;
+  background: #f5f5f7;
+}
+
+/* ─── Editor shell ──────────────────────────────────────────────────────── */
+
+.editor-shell {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  height: 100vh;
+  overflow: hidden;
+  background: #1a1410;
+  color: #f5f5f7;
+}
+
+.editor-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: #111;
+  border-bottom: 1px solid #333;
+  flex-shrink: 0;
+}
+
+.editor-back {
+  color: #aaa;
+  text-decoration: none;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.editor-back:hover {
+  color: #fff;
+}
+
+.editor-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  flex: 1;
+  color: #f5f5f7;
+}
+
+.editor-toolbar {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.btn-sm {
+  padding: 5px 10px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  border-radius: 6px;
+}
+
+/* ─── Editor body ───────────────────────────────────────────────────────── */
+
+.editor-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.editor-map {
+  flex: 1;
+  position: relative;
+}
+
+.editor-mode-badge {
+  position: absolute;
+  bottom: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.65);
+  color: #ddd;
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 20px;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.editor-stats-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #ccc;
+  font-size: 0.75rem;
+  padding: 3px 8px;
+  border-radius: 6px;
+  pointer-events: none;
+}
+
+/* ─── Editor point markers ──────────────────────────────────────────────── */
+
+.editor-point-marker {
+  position: absolute;
+  /* transform is set inline to include inverse-scale, centering included there */
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.7);
+  background: rgba(100, 140, 240, 0.85);
+  cursor: pointer;
+  z-index: 2;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+}
+
+.editor-point-marker.checkpoint {
+  width: 16px;
+  height: 16px;
+  background: rgba(230, 160, 50, 0.9);
+  border-color: #fff;
+  z-index: 3;
+}
+
+.editor-point-marker.selected {
+  border-color: #fff;
+  box-shadow: 0 0 0 3px rgba(0, 130, 255, 0.6), 0 1px 6px rgba(0, 0, 0, 0.6);
+  z-index: 10;
+}
+
+.editor-point-label {
+  position: absolute;
+  left: calc(100% + 5px);
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.7);
+  padding: 1px 5px;
+  border-radius: 4px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.editor-preview-dot {
+  position: absolute;
+  /* transform set inline to include inverse-scale */
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #e67e22;
+  border: 2.5px solid #fff;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.5);
+  z-index: 20;
+}
+
+.editor-path-neutral {
+  fill: none;
+  stroke: rgba(120, 160, 255, 0.6);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* ─── Editor sidebar ────────────────────────────────────────────────────── */
+
+.editor-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: #1c1c1e;
+  border-left: 1px solid #333;
+  overflow-y: auto;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.editor-sidebar-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.editor-sidebar-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  flex: 1;
+  color: #f5f5f7;
+}
+
+.editor-sidebar-order {
+  display: flex;
+  gap: 4px;
+}
+
+.editor-field-row {
+  display: flex;
+  gap: 8px;
+}
+
+.editor-field-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: #aaa;
+  flex: 1;
+}
+
+.editor-field-input {
+  width: 100%;
+  background: #2a2a2e;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #f5f5f7;
+  padding: 5px 7px;
+  font-size: 0.8125rem;
+  outline: none;
+}
+
+.editor-field-input:focus {
+  border-color: #0071e3;
+}
+
+.editor-field-input-wide {
+  width: 100%;
+  background: #2a2a2e;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #f5f5f7;
+  padding: 5px 7px;
+  font-size: 0.8125rem;
+  outline: none;
+}
+
+.editor-field-input-wide:focus {
+  border-color: #0071e3;
+}
+
+.editor-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.8125rem;
+  color: #ccc;
+  cursor: pointer;
+}
+
+.editor-midpoint-btn {
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+.editor-shell .btn-primary {
+  background: #0071e3;
+  color: #fff;
+}
+
+.editor-shell .btn-secondary {
+  background: #2a2a2e;
+  color: #ccc;
+  border-color: #444;
+}
+
+.editor-shell .btn-secondary:hover:not(:disabled) {
+  background: #3a3a3e;
+}
+
+.editor-shell .btn-danger {
+  background: #4a1010;
+  color: #ff7070;
+  border-color: #6a2020;
+}
+
+/* ─── Editor bottom panel ───────────────────────────────────────────────── */
+
+.editor-bottom {
+  background: #111;
+  border-top: 1px solid #333;
+  flex-shrink: 0;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editor-preview-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.editor-preview-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8125rem;
+  color: #aaa;
+  flex: 1;
+}
+
+.editor-preview-label strong {
+  color: #f5f5f7;
+  min-width: 80px;
+}
+
+.editor-preview-slider {
+  flex: 1;
+  accent-color: #0071e3;
+}
+
+.editor-preview-info {
+  font-size: 0.75rem;
+  color: #888;
+  white-space: nowrap;
+}
+
+.editor-json-section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.editor-json-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.editor-json-textarea {
+  width: 100%;
+  height: 140px;
+  background: #0d0d0d;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: #c8e6c9;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  padding: 8px;
+  resize: vertical;
+  outline: none;
+}
+
+.editor-json-textarea:focus {
+  border-color: #0071e3;
+}
+
+.editor-json-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.editor-context-menu {
+  position: fixed;
+  z-index: 1000;
+  background: #1e1e2e;
+  border: 1px solid #3a3a5c;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  padding: 4px;
+  min-width: 170px;
+}
+
+.editor-context-item {
+  display: block;
+  width: 100%;
+  padding: 8px 14px;
+  text-align: left;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: #e0e0f0;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.editor-context-item:hover {
+  background: #2a2a4a;
+}
+
+.editor-context-item-danger {
+  color: #f87171;
+}
+
+.editor-context-item-danger:hover {
+  background: #3a1a1a;
+}
+
+@media (max-width: 600px) {
+  .editor-body {
+    flex-direction: column;
+  }
+
+  .editor-sidebar {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid #333;
+    max-height: 220px;
+  }
 }
