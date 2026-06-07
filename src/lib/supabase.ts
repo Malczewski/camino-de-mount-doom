@@ -28,8 +28,12 @@ export interface Group {
   id: string;
   name: string;
   invite_code: string;
+  created_at: string;
 }
 
-export interface GroupMember extends Profile {
+// Returned by the get_group_members RPC — steps are relative to group creation date
+export interface GroupMember {
+  id: string;
   display_name: string;
+  group_steps: number;
 }

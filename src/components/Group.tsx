@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { getProgressPercent } from "../lib/mapPosition";
-import { supabase, type Group, type GroupMember, type Profile } from "../lib/supabase";
+import { supabase, type Group, type GroupMember } from "../lib/supabase";
 
 interface GroupProps {
   userId: string;
@@ -36,19 +36,9 @@ export default function GroupScreen({
   } | null>(null);
 
   const loadMembersForGroup = useCallback(async (groupId: string) => {
-    const { data, error } = await supabase
-      .from("group_members")
-      .select("profiles(id, display_name, total_steps)")
-      .eq("group_id", groupId);
-
+    const { data, error } = await supabase.rpc("get_group_members", { p_group_id: groupId });
     if (error) return;
-
-    const members: GroupMember[] = (data ?? [])
-      .map((row) => row.profiles as Profile | null)
-      .filter((p): p is Profile => p !== null)
-      .map((m) => ({ ...m, display_name: m.display_name ?? "Traveler" }));
-
-    setGroupMemberMap((prev) => ({ ...prev, [groupId]: members }));
+    setGroupMemberMap((prev) => ({ ...prev, [groupId]: (data ?? []) as GroupMember[] }));
   }, []);
 
   useEffect(() => {
@@ -107,7 +97,7 @@ export default function GroupScreen({
     const { data: newGroup, error: createError } = await supabase
       .from("groups")
       .insert({ name, invite_code: inviteCode })
-      .select("id, name, invite_code")
+      .select("id, name, invite_code, created_at")
       .single();
 
     if (createError || !newGroup) {
@@ -242,7 +232,12 @@ export default function GroupScreen({
         return (
           <div key={group.id} className={`card group-card${isActive ? " group-card-active" : ""}`}>
             <div className="group-card-header">
-              <h2 className="section-title" style={{ marginBottom: 0 }}>{group.name}</h2>
+              <div>
+                <h2 className="section-title" style={{ marginBottom: 2 }}>{group.name}</h2>
+                <p className="group-start-date">
+                  Tracking since {new Date(group.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                </p>
+              </div>
               {isActive ? (
                 <span className="group-active-badge">On map</span>
               ) : (
@@ -285,9 +280,9 @@ export default function GroupScreen({
                         {member.id === userId ? " (you)" : ""}
                       </span>
                       <span className="member-meta">
-                        {member.total_steps.toLocaleString()} steps
+                        {member.group_steps.toLocaleString()} steps
                         <br />
-                        {getProgressPercent(member.total_steps)}%
+                        {getProgressPercent(member.group_steps)}%
                       </span>
                     </li>
                   ))}

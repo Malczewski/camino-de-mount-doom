@@ -3,7 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import GroupScreen from "./components/Group";
 import MapView from "./components/Map";
 import Profile from "./components/Profile";
-import { supabase, type Group, type GroupMember, type Profile as ProfileType } from "./lib/supabase";
+import { supabase, type Group, type GroupMember } from "./lib/supabase";
 
 type Tab = "map" | "group" | "profile";
 type AuthMode = "login" | "signup";
@@ -157,7 +157,7 @@ export default function App() {
   const loadUserGroups = useCallback(async (uid: string) => {
     const { data } = await supabase
       .from("group_members")
-      .select("groups(id, name, invite_code)")
+      .select("groups(id, name, invite_code, created_at)")
       .eq("user_id", uid);
 
     const groups: Group[] = (data ?? [])
@@ -180,22 +180,14 @@ export default function App() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from("group_members")
-      .select("profiles(id, display_name, total_steps)")
-      .eq("group_id", gid);
+    const { data, error } = await supabase.rpc("get_group_members", { p_group_id: gid });
 
     if (error) {
       console.error("Failed to load map members:", error.message);
       return;
     }
 
-    setMapMembers(
-      (data ?? [])
-        .map((row) => row.profiles as ProfileType | null)
-        .filter((p): p is ProfileType => p !== null)
-        .map((m) => ({ ...m, display_name: m.display_name ?? "Traveler" })),
-    );
+    setMapMembers((data ?? []) as GroupMember[]);
   }, []);
 
   useEffect(() => {
@@ -238,31 +230,6 @@ export default function App() {
   useEffect(() => {
     if (!activeGroupId) return;
 
-    const refreshMembers = async (userIds: string[]) => {
-      const { data } = await supabase
-        .from("group_members")
-        .select("profiles(id, display_name, total_steps)")
-        .eq("group_id", activeGroupId)
-        .in("user_id", userIds);
-
-      if (!data) return;
-
-      const updates = new Map(
-        (data ?? [])
-          .map((row) => row.profiles as ProfileType | null)
-          .filter((p): p is ProfileType => p !== null)
-          .map((p) => [p.id, { ...p, display_name: p.display_name ?? "Traveler" } as GroupMember]),
-      );
-
-      setMapMembers((prev) => {
-        const merged = prev.map((m) => updates.get(m.id) ?? m);
-        for (const [id, m] of updates) {
-          if (!prev.some((p) => p.id === id)) merged.push(m);
-        }
-        return merged;
-      });
-    };
-
     const channel = supabase
       .channel(`map-group-${activeGroupId}`)
       .on(
@@ -274,7 +241,7 @@ export default function App() {
             row?.user_id ??
             (payload.old as { user_id?: string } | null)?.user_id;
           if (eventUserId && mapMemberIdsRef.current.has(eventUserId)) {
-            void refreshMembers([eventUserId]);
+            void loadMapMembers(activeGroupId);
           }
         },
       )
@@ -284,7 +251,7 @@ export default function App() {
         (payload) => {
           const row = payload.new as { id?: string };
           if (row.id && mapMemberIdsRef.current.has(row.id)) {
-            void refreshMembers([row.id]);
+            void loadMapMembers(activeGroupId);
           }
         },
       )

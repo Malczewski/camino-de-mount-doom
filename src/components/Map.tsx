@@ -184,7 +184,7 @@ export default function Map({
 
   // ─── Path rendering ───────────────────────────────────────────────────────
   const currentMember = members.find((m) => m.id === currentUserId);
-  const currentSteps = currentMember?.total_steps ?? 0;
+  const currentSteps = currentMember?.group_steps ?? 0;
 
   const { walked: walkedPath, remaining: remainingPath } =
     imageSize.width > 0
@@ -247,7 +247,7 @@ export default function Map({
 
             {/* Member markers */}
             {members.map((member) => {
-              const pos = getRoutePosition(member.total_steps, routeConfig);
+              const pos = getRoutePosition(member.group_steps, routeConfig);
               return (
                 <div
                   key={member.id}
