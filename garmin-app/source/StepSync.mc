@@ -9,21 +9,38 @@ using Toybox.Time;
 module StepSync {
 
     const EDGE_FUNCTION_URL = "https://wpkwqhbrvphjppfquqby.supabase.co/functions/v1/step-sync";
+    const DEBUG = false;
+
+    function log(message as Lang.String) as Void {
+        if (DEBUG) {
+            System.println(message);
+        }
+    }
 
     function sync(callback as Lang.Method) as Void {
-        var apiKey = Application.Storage.getValue("api_key");
+        log("sync() called");
+        var apiKey = Application.Properties.getValue("api_key");
 
         if (apiKey == null || !(apiKey instanceof Lang.String) || (apiKey as Lang.String).length() == 0) {
+            log("sync() aborted: no api key");
             return;
         }
 
-        var info = ActivityMonitor.getInfo();
+        var info;
+        try {
+            info = ActivityMonitor.getInfo();
+        } catch (ex instanceof Lang.Exception) {
+            log("ActivityMonitor.getInfo() failed: " + ex.getErrorMessage());
+            return;
+        }
         if (info == null || info.steps == null) {
+            log("sync() aborted: no step info");
             return;
         }
 
         var steps = info.steps;
         if (steps < 0) {
+            log("sync() aborted: negative steps");
             return;
         }
 
@@ -41,6 +58,7 @@ module StepSync {
             :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
         };
 
+        log("makeWebRequest steps=" + steps + " date=" + payload["date"]);
         try {
             Communications.makeWebRequest(
                 EDGE_FUNCTION_URL,
@@ -49,7 +67,7 @@ module StepSync {
                 callback
             );
         } catch (ex) {
-            System.println("Step sync request failed to start");
+            log("Step sync request failed to start: " + ex.getErrorMessage());
         }
     }
 

@@ -10,16 +10,19 @@ class BackgroundService extends System.ServiceDelegate {
     }
 
     function onTemporalEvent() as Void {
+        StepSync.log("onTemporalEvent fired");
         StepSync.sync(method(:onWebResponse));
     }
 
     function onBackgroundData(data as Application.PersistableType) as Void {
+        StepSync.log("onBackgroundData fired");
         StepSync.sync(method(:onWebResponse));
     }
 
     function onWebResponse(responseCode as Lang.Number, data as Lang.Dictionary or Lang.String or Null) as Void {
+        StepSync.log("onWebResponse: " + responseCode + " data=" + data);
         if (responseCode < 200 || responseCode >= 300) {
-            System.println("Step sync failed with status " + responseCode);
+            StepSync.log("Step sync failed with status " + responseCode);
         }
     }
 }

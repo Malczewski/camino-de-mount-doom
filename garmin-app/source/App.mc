@@ -4,6 +4,7 @@ using Toybox.Communications;
 using Toybox.Lang;
 using Toybox.System;
 using Toybox.Time;
+using Toybox.WatchUi;
 
 const SETTINGS_URL = "https://camino-de-mount-doom.netlify.app/garmin-auth.html";
 
@@ -13,9 +14,13 @@ class App extends Application.AppBase {
         AppBase.initialize();
     }
 
+    function getInitialView() as [WatchUi.Views] or [WatchUi.Views, WatchUi.InputDelegates] {
+        return [new AppView()];
+    }
+
     function onStart(state as Lang.Dictionary?) as Void {
         registerBackgroundSync();
-        var apiKey = Application.Storage.getValue("api_key");
+        var apiKey = Application.Properties.getValue("api_key");
         if (apiKey == null || !(apiKey instanceof Lang.String) || (apiKey as Lang.String).length() == 0) {
             Communications.openWebPage(SETTINGS_URL, null, null);
         }
