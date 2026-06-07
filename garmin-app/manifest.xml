@@ -7,8 +7,8 @@
         minApiLevel="3.4.0"
         name="@Strings.AppName"
         type="background"
-        version="1.0.0"
-        settingsView="YOUR_AUTH_PAGE_URL">
+        version="0.0.1"
+        settingsView="https://camino-de-mount-doom.netlify.app/garmin-auth.html">
 
         <iq:products>
             <iq:product id="fenix7"/>
