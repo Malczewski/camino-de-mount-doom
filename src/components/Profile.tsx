@@ -8,11 +8,15 @@ import { supabase } from "../lib/supabase";
 interface ProfileProps {
   userId: string;
   onAccountDeleted: () => void;
+  onLogout: () => void;
 }
 
-export default function Profile({ userId, onAccountDeleted }: ProfileProps) {
+export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileProps) {
   const [totalSteps, setTotalSteps] = useState(0);
   const [displayName, setDisplayName] = useState("");
+  const [editingName, setEditingName] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [savingName, setSavingName] = useState(false);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [message, setMessage] = useState<{
@@ -89,6 +93,48 @@ export default function Profile({ userId, onAccountDeleted }: ProfileProps) {
     };
   }, [userId]);
 
+  const startEditingName = () => {
+    setNewName(displayName);
+    setEditingName(true);
+    setMessage(null);
+  };
+
+  const saveName = async () => {
+    const trimmed = newName.trim();
+    setSavingName(true);
+    setMessage(null);
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ display_name: trimmed || null })
+      .eq("id", userId);
+
+    setSavingName(false);
+
+    if (error) {
+      setMessage({ text: error.message, type: "error" });
+      return;
+    }
+
+    setDisplayName(trimmed);
+    setEditingName(false);
+    setMessage({ text: "Name updated!", type: "success" });
+  };
+
+  const cancelEditName = () => {
+    setEditingName(false);
+    setNewName("");
+  };
+
+  const logout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) {
+      setMessage({ text: error.message, type: "error" });
+      return;
+    }
+    onLogout();
+  };
+
   const deleteAccount = async () => {
     const confirmed = window.confirm(
       "Delete your account permanently? This cannot be undone.",
@@ -138,6 +184,52 @@ export default function Profile({ userId, onAccountDeleted }: ProfileProps) {
       <div className="card">
         <h2 className="section-title">{displayName || "Your journey"}</h2>
 
+        <div className="section">
+          <h3 className="section-title">Display name</h3>
+          {editingName ? (
+            <div className="name-edit-row">
+              <input
+                type="text"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                placeholder="Your name"
+                maxLength={60}
+                autoFocus
+                style={{ marginBottom: 0 }}
+              />
+              <button
+                type="button"
+                className="btn btn-primary btn-sm"
+                onClick={() => void saveName()}
+                disabled={savingName}
+              >
+                {savingName ? "Saving…" : "Save"}
+              </button>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={cancelEditName}
+                disabled={savingName}
+              >
+                Cancel
+              </button>
+            </div>
+          ) : (
+            <div className="name-display-row">
+              <span className="profile-name-value">
+                {displayName || <em style={{ color: "#6e6e73" }}>No name set</em>}
+              </span>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={startEditingName}
+              >
+                Edit
+              </button>
+            </div>
+          )}
+        </div>
+
         <div className="profile-stat">
           <span className="profile-stat-label">Total steps</span>
           <span className="profile-stat-value">
@@ -154,6 +246,13 @@ export default function Profile({ userId, onAccountDeleted }: ProfileProps) {
         </div>
 
         <div className="section">
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => void logout()}
+          >
+            Log out
+          </button>
           <button
             type="button"
             className="btn btn-danger"
