@@ -16,13 +16,21 @@ CREATE TABLE IF NOT EXISTS profiles (
   id           UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   display_name TEXT,
   total_steps  BIGINT NOT NULL DEFAULT 0,
-  group_id     UUID REFERENCES groups(id) ON DELETE SET NULL,
   api_key      TEXT UNIQUE NOT NULL DEFAULT gen_random_uuid()::text,
   created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS profiles_group_id_idx ON profiles(group_id);
 CREATE INDEX IF NOT EXISTS profiles_api_key_idx ON profiles(api_key);
+
+CREATE TABLE IF NOT EXISTS group_members (
+  group_id  UUID NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+  user_id   UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  joined_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (group_id, user_id)
+);
+
+CREATE INDEX IF NOT EXISTS group_members_user_id_idx ON group_members(user_id);
+CREATE INDEX IF NOT EXISTS group_members_group_id_idx ON group_members(group_id);
 
 CREATE TABLE IF NOT EXISTS step_logs (
   id      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -59,17 +67,8 @@ CREATE TRIGGER on_auth_user_created
 
 -- ── Row Level Security ────────────────────────────────────────────────────────
 
-CREATE OR REPLACE FUNCTION public.current_user_group_id()
-RETURNS UUID
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT group_id FROM profiles WHERE id = auth.uid();
-$$;
-
-CREATE OR REPLACE FUNCTION public.is_group_member(target_user_id UUID)
+-- Returns true if auth.uid() and target share at least one group
+CREATE OR REPLACE FUNCTION public.share_any_group(target_user_id UUID)
 RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
@@ -77,17 +76,15 @@ SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT EXISTS (
-    SELECT 1
-    FROM profiles p1
-    JOIN profiles p2 ON p1.group_id = p2.group_id
-    WHERE p1.id = auth.uid()
-      AND p1.group_id IS NOT NULL
-      AND p2.id = target_user_id
+    SELECT 1 FROM group_members gm1
+    JOIN group_members gm2 ON gm1.group_id = gm2.group_id
+    WHERE gm1.user_id = auth.uid() AND gm2.user_id = target_user_id
   );
 $$;
 
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE groups ENABLE ROW LEVEL SECURITY;
+ALTER TABLE group_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE step_logs ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "profiles_select_own_and_group" ON profiles;
@@ -96,10 +93,7 @@ CREATE POLICY "profiles_select_own_and_group"
   TO authenticated
   USING (
     id = auth.uid()
-    OR (
-      group_id IS NOT NULL
-      AND group_id = public.current_user_group_id()
-    )
+    OR public.share_any_group(id)
   );
 
 DROP POLICY IF EXISTS "profiles_update_own" ON profiles;
@@ -127,13 +121,31 @@ CREATE POLICY "groups_select_authenticated"
   TO authenticated
   USING (true);
 
+DROP POLICY IF EXISTS "group_members_select_authenticated" ON group_members;
+CREATE POLICY "group_members_select_authenticated"
+  ON group_members FOR SELECT
+  TO authenticated
+  USING (true);
+
+DROP POLICY IF EXISTS "group_members_insert_own" ON group_members;
+CREATE POLICY "group_members_insert_own"
+  ON group_members FOR INSERT
+  TO authenticated
+  WITH CHECK (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "group_members_delete_own" ON group_members;
+CREATE POLICY "group_members_delete_own"
+  ON group_members FOR DELETE
+  TO authenticated
+  USING (user_id = auth.uid());
+
 DROP POLICY IF EXISTS "step_logs_select_own_and_group" ON step_logs;
 CREATE POLICY "step_logs_select_own_and_group"
   ON step_logs FOR SELECT
   TO authenticated
   USING (
     user_id = auth.uid()
-    OR public.is_group_member(user_id)
+    OR public.share_any_group(user_id)
   );
 
 DROP POLICY IF EXISTS "step_logs_insert_own" ON step_logs;
@@ -144,11 +156,13 @@ CREATE POLICY "step_logs_insert_own"
 
 GRANT SELECT, INSERT, UPDATE, DELETE ON profiles TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON groups TO anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE ON group_members TO anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON step_logs TO anon, authenticated;
 
 -- step-sync edge function (service_role key, no user JWT)
 GRANT SELECT, INSERT, UPDATE, DELETE ON profiles TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON groups TO service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON group_members TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON step_logs TO service_role;
 
 -- ── Realtime ─────────────────────────────────────────────────────────────────
@@ -160,6 +174,13 @@ BEGIN
     WHERE pubname = 'supabase_realtime' AND tablename = 'profiles'
   ) THEN
     ALTER PUBLICATION supabase_realtime ADD TABLE profiles;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_publication_tables
+    WHERE pubname = 'supabase_realtime' AND tablename = 'group_members'
+  ) THEN
+    ALTER PUBLICATION supabase_realtime ADD TABLE group_members;
   END IF;
 
   IF NOT EXISTS (

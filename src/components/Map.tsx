@@ -233,7 +233,12 @@ export default function Map({
                 width: imageSize.width,
                 height: imageSize.height,
                 pointerEvents: "none",
-                overflow: "visible",
+                overflow: "hidden",
+                // Isolate path repaints onto their own GPU layer so updating the
+                // route never forces the large image layer to re-rasterize (which
+                // briefly paints black tiles).
+                transform: "translateZ(0)",
+                backfaceVisibility: "hidden",
               }}
             >
               <path fill="none" d={walkedPath || "M 0 0"} className="path-walked" style={{ strokeWidth: sw }} />
@@ -247,7 +252,12 @@ export default function Map({
                 <div
                   key={member.id}
                   className="map-marker"
-                  style={{ left: `${pos.x}%`, top: `${pos.y}%` }}
+                  style={{
+                    left: `${pos.x}%`,
+                    top: `${pos.y}%`,
+                    // Counter-scale so dot + label stay visually constant regardless of zoom
+                    transform: `translate(-50%, -50%) scale(${1 / transform.scale})`,
+                  }}
                 >
                   <span
                     className={`marker-dot${member.id === currentUserId ? " self" : ""}`}

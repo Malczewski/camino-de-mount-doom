@@ -3,7 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import GroupScreen from "./components/Group";
 import MapView from "./components/Map";
 import Profile from "./components/Profile";
-import { supabase, type GroupMember } from "./lib/supabase";
+import { supabase, type Group, type GroupMember, type Profile as ProfileType } from "./lib/supabase";
 
 type Tab = "map" | "group" | "profile";
 type AuthMode = "login" | "signup";
@@ -143,7 +143,8 @@ export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [tab, setTab] = useState<Tab>("map");
-  const [groupId, setGroupId] = useState<string | null>(null);
+  const [userGroups, setUserGroups] = useState<Group[]>([]);
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [mapMembers, setMapMembers] = useState<GroupMember[]>([]);
   const mapMemberIdsRef = useRef<Set<string>>(new Set());
 
@@ -153,13 +154,24 @@ export default function App() {
     mapMemberIdsRef.current = new Set(mapMembers.map((m) => m.id));
   }, [mapMembers]);
 
-  const loadGroupId = useCallback(async (uid: string) => {
+  const loadUserGroups = useCallback(async (uid: string) => {
     const { data } = await supabase
-      .from("profiles")
-      .select("group_id")
-      .eq("id", uid)
-      .single();
-    setGroupId(data?.group_id ?? null);
+      .from("group_members")
+      .select("groups(id, name, invite_code)")
+      .eq("user_id", uid);
+
+    const groups: Group[] = (data ?? [])
+      .map((row) => row.groups as Group | null)
+      .filter((g): g is Group => g !== null);
+
+    setUserGroups(groups);
+
+    setActiveGroupId((prev) => {
+      if (prev && groups.some((g) => g.id === prev)) return prev;
+      const stored = localStorage.getItem("active-group-id");
+      if (stored && groups.some((g) => g.id === stored)) return stored;
+      return groups[0]?.id ?? null;
+    });
   }, []);
 
   const loadMapMembers = useCallback(async (gid: string | null) => {
@@ -169,8 +181,8 @@ export default function App() {
     }
 
     const { data, error } = await supabase
-      .from("profiles")
-      .select("id, display_name, total_steps, group_id")
+      .from("group_members")
+      .select("profiles(id, display_name, total_steps)")
       .eq("group_id", gid);
 
     if (error) {
@@ -179,10 +191,10 @@ export default function App() {
     }
 
     setMapMembers(
-      (data ?? []).map((m) => ({
-        ...m,
-        display_name: m.display_name ?? "Traveler",
-      })),
+      (data ?? [])
+        .map((row) => row.profiles as ProfileType | null)
+        .filter((p): p is ProfileType => p !== null)
+        .map((m) => ({ ...m, display_name: m.display_name ?? "Traveler" })),
     );
   }, []);
 
@@ -191,7 +203,7 @@ export default function App() {
       setSession(data.session);
       setAuthReady(true);
       if (data.session?.user.id) {
-        void loadGroupId(data.session.user.id);
+        void loadUserGroups(data.session.user.id);
       }
     });
 
@@ -200,58 +212,59 @@ export default function App() {
     } = supabase.auth.onAuthStateChange((_event, nextSession) => {
       setSession(nextSession);
       if (nextSession?.user.id) {
-        void loadGroupId(nextSession.user.id);
+        void loadUserGroups(nextSession.user.id);
       } else {
-        setGroupId(null);
+        setUserGroups([]);
+        setActiveGroupId(null);
         setMapMembers([]);
       }
     });
 
     return () => subscription.unsubscribe();
-  }, [loadGroupId]);
+  }, [loadUserGroups]);
 
   useEffect(() => {
-    void loadMapMembers(groupId);
-  }, [groupId, loadMapMembers]);
+    void loadMapMembers(activeGroupId);
+  }, [activeGroupId, loadMapMembers]);
 
   useEffect(() => {
-    if (!groupId) return;
+    if (activeGroupId) {
+      localStorage.setItem("active-group-id", activeGroupId);
+    } else {
+      localStorage.removeItem("active-group-id");
+    }
+  }, [activeGroupId]);
+
+  useEffect(() => {
+    if (!activeGroupId) return;
 
     const refreshMembers = async (userIds: string[]) => {
       const { data } = await supabase
-        .from("profiles")
-        .select("id, display_name, total_steps, group_id")
-        .in("id", userIds)
-        .eq("group_id", groupId);
+        .from("group_members")
+        .select("profiles(id, display_name, total_steps)")
+        .eq("group_id", activeGroupId)
+        .in("user_id", userIds);
 
       if (!data) return;
 
+      const updates = new Map(
+        (data ?? [])
+          .map((row) => row.profiles as ProfileType | null)
+          .filter((p): p is ProfileType => p !== null)
+          .map((p) => [p.id, { ...p, display_name: p.display_name ?? "Traveler" } as GroupMember]),
+      );
+
       setMapMembers((prev) => {
-        const updates = new Map(data.map((p) => [p.id, p]));
-        const merged = prev.map((m) => {
-          const updated = updates.get(m.id);
-          if (!updated) return m;
-          return {
-            ...updated,
-            display_name: updated.display_name ?? "Traveler",
-          };
-        });
-
-        for (const row of data) {
-          if (!prev.some((m) => m.id === row.id)) {
-            merged.push({
-              ...row,
-              display_name: row.display_name ?? "Traveler",
-            });
-          }
+        const merged = prev.map((m) => updates.get(m.id) ?? m);
+        for (const [id, m] of updates) {
+          if (!prev.some((p) => p.id === id)) merged.push(m);
         }
-
-        return merged.filter((m) => m.group_id === groupId);
+        return merged;
       });
     };
 
     const channel = supabase
-      .channel(`map-group-${groupId}`)
+      .channel(`map-group-${activeGroupId}`)
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "step_logs" },
@@ -269,13 +282,22 @@ export default function App() {
         "postgres_changes",
         { event: "UPDATE", schema: "public", table: "profiles" },
         (payload) => {
-          const row = payload.new as { id?: string; group_id?: string | null };
-          if (!row.id) return;
-          if (row.group_id === groupId) {
+          const row = payload.new as { id?: string };
+          if (row.id && mapMemberIdsRef.current.has(row.id)) {
             void refreshMembers([row.id]);
-          } else if (mapMemberIdsRef.current.has(row.id)) {
-            setMapMembers((prev) => prev.filter((m) => m.id !== row.id));
           }
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "group_members",
+          filter: `group_id=eq.${activeGroupId}`,
+        },
+        () => {
+          void loadMapMembers(activeGroupId);
         },
       )
       .subscribe();
@@ -283,7 +305,7 @@ export default function App() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [groupId]);
+  }, [activeGroupId, loadMapMembers]);
 
   if (!authReady) {
     return (
@@ -320,14 +342,22 @@ export default function App() {
 
       <main className={`main-content${tab === "map" ? " map-main" : ""}`}>
         {tab === "map" && (
-          <MapView members={mapMembers} currentUserId={userId} />
+          <MapView
+            members={mapMembers}
+            currentUserId={userId}
+            userGroups={userGroups}
+            activeGroupId={activeGroupId}
+            onActiveGroupChange={(id) => setActiveGroupId(id)}
+          />
         )}
         {tab === "group" && (
           <GroupScreen
             userId={userId}
-            groupId={groupId}
-            onGroupChange={(id) => {
-              setGroupId(id);
+            userGroups={userGroups}
+            activeGroupId={activeGroupId}
+            onGroupsChange={() => loadUserGroups(userId)}
+            onActiveGroupChange={(id) => {
+              setActiveGroupId(id);
               void loadMapMembers(id);
             }}
           />
@@ -337,7 +367,14 @@ export default function App() {
             userId={userId}
             onAccountDeleted={() => {
               setSession(null);
-              setGroupId(null);
+              setUserGroups([]);
+              setActiveGroupId(null);
+              setMapMembers([]);
+            }}
+            onLogout={() => {
+              setSession(null);
+              setUserGroups([]);
+              setActiveGroupId(null);
               setMapMembers([]);
             }}
           />

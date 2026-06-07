@@ -1,11 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { getProgressPercent } from "../lib/mapPosition";
-import { supabase, type Group, type GroupMember } from "../lib/supabase";
+import { supabase, type Group, type GroupMember, type Profile } from "../lib/supabase";
 
 interface GroupProps {
   userId: string;
-  groupId: string | null;
-  onGroupChange: (groupId: string | null) => void;
+  userGroups: Group[];
+  activeGroupId: string | null;
+  onGroupsChange: () => Promise<void>;
+  onActiveGroupChange: (groupId: string | null) => void;
 }
 
 function generateInviteCode(): string {
@@ -18,11 +20,13 @@ function generateInviteCode(): string {
 
 export default function GroupScreen({
   userId,
-  groupId,
-  onGroupChange,
+  userGroups,
+  activeGroupId,
+  onGroupsChange,
+  onActiveGroupChange,
 }: GroupProps) {
-  const [group, setGroup] = useState<Group | null>(null);
-  const [members, setMembers] = useState<GroupMember[]>([]);
+  const [groupMemberMap, setGroupMemberMap] = useState<Record<string, GroupMember[]>>({});
+  const [copiedGroupId, setCopiedGroupId] = useState<string | null>(null);
   const [groupName, setGroupName] = useState("");
   const [inviteInput, setInviteInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -30,106 +34,63 @@ export default function GroupScreen({
     text: string;
     type: "error" | "success";
   } | null>(null);
-  const [copied, setCopied] = useState(false);
-  const memberIdsRef = useRef<Set<string>>(new Set());
+
+  const loadMembersForGroup = useCallback(async (groupId: string) => {
+    const { data, error } = await supabase
+      .from("group_members")
+      .select("profiles(id, display_name, total_steps)")
+      .eq("group_id", groupId);
+
+    if (error) return;
+
+    const members: GroupMember[] = (data ?? [])
+      .map((row) => row.profiles as Profile | null)
+      .filter((p): p is Profile => p !== null)
+      .map((m) => ({ ...m, display_name: m.display_name ?? "Traveler" }));
+
+    setGroupMemberMap((prev) => ({ ...prev, [groupId]: members }));
+  }, []);
 
   useEffect(() => {
-    memberIdsRef.current = new Set(members.map((m) => m.id));
-  }, [members]);
-
-  const loadGroup = useCallback(async () => {
-    if (!groupId) {
-      setGroup(null);
-      setMembers([]);
-      return;
+    for (const group of userGroups) {
+      void loadMembersForGroup(group.id);
     }
+  }, [userGroups, loadMembersForGroup]);
 
-    const [groupRes, membersRes] = await Promise.all([
-      supabase.from("groups").select("id, name, invite_code").eq("id", groupId).single(),
+  // Realtime: refresh members when step_logs or profiles change
+  useEffect(() => {
+    if (userGroups.length === 0) return;
+
+    const channels = userGroups.map((group) =>
       supabase
-        .from("profiles")
-        .select("id, display_name, total_steps, group_id")
-        .eq("group_id", groupId),
-    ]);
-
-    if (groupRes.error) {
-      setMessage({ text: groupRes.error.message, type: "error" });
-      return;
-    }
-
-    if (membersRes.error) {
-      setMessage({ text: membersRes.error.message, type: "error" });
-      return;
-    }
-
-    setGroup(groupRes.data);
-    setMembers(
-      (membersRes.data ?? []).map((m) => ({
-        ...m,
-        display_name: m.display_name ?? "Traveler",
-      })),
+        .channel(`group-screen-${group.id}`)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "step_logs" },
+          () => void loadMembersForGroup(group.id),
+        )
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "profiles" },
+          () => void loadMembersForGroup(group.id),
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "group_members",
+            filter: `group_id=eq.${group.id}`,
+          },
+          () => void loadMembersForGroup(group.id),
+        )
+        .subscribe(),
     );
-  }, [groupId]);
-
-  useEffect(() => {
-    void loadGroup();
-  }, [loadGroup]);
-
-  useEffect(() => {
-    if (!groupId) return;
-
-    const refreshMemberSteps = async (userIds: string[]) => {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("id, display_name, total_steps, group_id")
-        .in("id", userIds);
-
-      if (error || !data) return;
-
-      setMembers((prev) => {
-        const updates = new Map(data.map((p) => [p.id, p]));
-        return prev.map((m) => {
-          const updated = updates.get(m.id);
-          if (!updated) return m;
-          return {
-            ...updated,
-            display_name: updated.display_name ?? "Traveler",
-          };
-        });
-      });
-    };
-
-    const channel = supabase
-      .channel(`group-${groupId}-steps`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "step_logs" },
-        (payload) => {
-          const row = payload.new as { user_id?: string } | null;
-          const userIdFromEvent =
-            row?.user_id ??
-            (payload.old as { user_id?: string } | null)?.user_id;
-          if (userIdFromEvent && memberIdsRef.current.has(userIdFromEvent)) {
-            void refreshMemberSteps([userIdFromEvent]);
-          }
-        },
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "profiles" },
-        (payload) => {
-          const row = payload.new as { id?: string };
-          if (row.id && memberIdsRef.current.has(row.id)) {
-            void refreshMemberSteps([row.id]);
-          }
-        },
-      )
-      .subscribe();
 
     return () => {
-      void supabase.removeChannel(channel);
+      for (const ch of channels) void supabase.removeChannel(ch);
     };
-  }, [groupId]);
+  }, [userGroups, loadMembersForGroup]);
 
   const createGroup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,20 +120,20 @@ export default function GroupScreen({
     }
 
     const { error: joinError } = await supabase
-      .from("profiles")
-      .update({ group_id: newGroup.id })
-      .eq("id", userId);
-
-    setLoading(false);
+      .from("group_members")
+      .insert({ group_id: newGroup.id, user_id: userId });
 
     if (joinError) {
       setMessage({ text: joinError.message, type: "error" });
+      setLoading(false);
       return;
     }
 
     setGroupName("");
-    onGroupChange(newGroup.id);
-    setMessage({ text: "Group created!", type: "success" });
+    await onGroupsChange();
+    onActiveGroupChange(newGroup.id);
+    setLoading(false);
+    setMessage({ text: `"${name}" created!`, type: "success" });
   };
 
   const joinGroup = async (e: React.FormEvent) => {
@@ -188,7 +149,7 @@ export default function GroupScreen({
 
     const { data: found, error: findError } = await supabase
       .from("groups")
-      .select("id")
+      .select("id, name")
       .eq("invite_code", code)
       .maybeSingle();
 
@@ -201,157 +162,189 @@ export default function GroupScreen({
       return;
     }
 
-    const { error: updateError } = await supabase
-      .from("profiles")
-      .update({ group_id: found.id })
-      .eq("id", userId);
+    if (userGroups.some((g) => g.id === found.id)) {
+      setMessage({ text: "You're already in this group.", type: "error" });
+      setLoading(false);
+      return;
+    }
 
-    setLoading(false);
+    const { error: insertError } = await supabase
+      .from("group_members")
+      .insert({ group_id: found.id, user_id: userId });
 
-    if (updateError) {
-      setMessage({ text: updateError.message, type: "error" });
+    if (insertError) {
+      setMessage({ text: insertError.message, type: "error" });
+      setLoading(false);
       return;
     }
 
     setInviteInput("");
-    onGroupChange(found.id);
-    setMessage({ text: "Joined group!", type: "success" });
+    await onGroupsChange();
+    onActiveGroupChange(found.id);
+    setLoading(false);
+    setMessage({ text: `Joined "${found.name}"!`, type: "success" });
   };
 
-  const leaveGroup = async () => {
-    if (!groupId) return;
+  const leaveGroup = async (groupId: string) => {
     setLoading(true);
     setMessage(null);
 
     const { error } = await supabase
-      .from("profiles")
-      .update({ group_id: null })
-      .eq("id", userId);
-
-    setLoading(false);
+      .from("group_members")
+      .delete()
+      .eq("group_id", groupId)
+      .eq("user_id", userId);
 
     if (error) {
       setMessage({ text: error.message, type: "error" });
+      setLoading(false);
       return;
     }
 
-    onGroupChange(null);
+    if (activeGroupId === groupId) {
+      const remaining = userGroups.filter((g) => g.id !== groupId);
+      onActiveGroupChange(remaining[0]?.id ?? null);
+    }
+
+    await onGroupsChange();
+    setGroupMemberMap((prev) => {
+      const next = { ...prev };
+      delete next[groupId];
+      return next;
+    });
+    setLoading(false);
     setMessage({ text: "You left the group.", type: "success" });
   };
 
-  const copyInviteCode = async () => {
-    if (!group?.invite_code) return;
+  const copyInviteCode = async (group: Group) => {
     try {
       await navigator.clipboard.writeText(group.invite_code);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      setCopiedGroupId(group.id);
+      setTimeout(() => setCopiedGroupId(null), 2000);
     } catch {
       setMessage({ text: "Could not copy to clipboard.", type: "error" });
     }
   };
 
-  if (!groupId || !group) {
-    return (
-      <div className="screen">
-        <div className="card">
-          <div className="section">
-            <h2 className="section-title">Create a fellowship</h2>
-            <form onSubmit={createGroup}>
-              <label htmlFor="group-name">Group name</label>
-              <input
-                id="group-name"
-                type="text"
-                value={groupName}
-                onChange={(e) => setGroupName(e.target.value)}
-                placeholder="The Fellowship"
-                maxLength={60}
-              />
-              <button type="submit" className="btn btn-primary" disabled={loading}>
-                Create group
-              </button>
-            </form>
-          </div>
-
-          <div className="section">
-            <h2 className="section-title">Join with invite code</h2>
-            <form onSubmit={joinGroup}>
-              <label htmlFor="invite-code">8-character code</label>
-              <input
-                id="invite-code"
-                type="text"
-                value={inviteInput}
-                onChange={(e) => setInviteInput(e.target.value.toUpperCase())}
-                placeholder="AB12CD34"
-                maxLength={8}
-                autoCapitalize="characters"
-              />
-              <button type="submit" className="btn btn-primary" disabled={loading}>
-                Join group
-              </button>
-            </form>
-          </div>
-
-          {message && (
-            <div className={`message ${message.type}`}>{message.text}</div>
-          )}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="screen">
-      <div className="card">
-        <h2 className="section-title">{group.name}</h2>
-
-        <div className="section">
-          <p className="subtitle" style={{ marginBottom: 12, textAlign: "left" }}>
-            Invite code
+      {userGroups.length === 0 && (
+        <div className="card">
+          <p className="empty-state" style={{ paddingBottom: 0 }}>
+            You haven't joined any fellowship yet.
           </p>
-          <div className="invite-row">
-            <div className="invite-code">{group.invite_code}</div>
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={() => void copyInviteCode()}
-            >
-              {copied ? "Copied!" : "Copy"}
-            </button>
+        </div>
+      )}
+
+      {userGroups.map((group) => {
+        const members = groupMemberMap[group.id] ?? [];
+        const isActive = activeGroupId === group.id;
+        return (
+          <div key={group.id} className={`card group-card${isActive ? " group-card-active" : ""}`}>
+            <div className="group-card-header">
+              <h2 className="section-title" style={{ marginBottom: 0 }}>{group.name}</h2>
+              {isActive ? (
+                <span className="group-active-badge">On map</span>
+              ) : (
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => onActiveGroupChange(group.id)}
+                >
+                  View on map
+                </button>
+              )}
+            </div>
+
+            <div className="section">
+              <p className="subtitle" style={{ marginBottom: 8, textAlign: "left" }}>
+                Invite code
+              </p>
+              <div className="invite-row">
+                <div className="invite-code">{group.invite_code}</div>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => void copyInviteCode(group)}
+                >
+                  {copiedGroupId === group.id ? "Copied!" : "Copy"}
+                </button>
+              </div>
+            </div>
+
+            <div className="section">
+              <h3 className="section-title">Members ({members.length})</h3>
+              {members.length === 0 ? (
+                <p className="empty-state">No members yet.</p>
+              ) : (
+                <ul className="member-list">
+                  {members.map((member) => (
+                    <li key={member.id} className="member-item">
+                      <span className="member-name">
+                        {member.display_name}
+                        {member.id === userId ? " (you)" : ""}
+                      </span>
+                      <span className="member-meta">
+                        {member.total_steps.toLocaleString()} steps
+                        <br />
+                        {getProgressPercent(member.total_steps)}%
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            <div className="row-actions">
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={() => void leaveGroup(group.id)}
+                disabled={loading}
+              >
+                Leave group
+              </button>
+            </div>
           </div>
+        );
+      })}
+
+      <div className="card">
+        <div className="section">
+          <h2 className="section-title">Join with invite code</h2>
+          <form onSubmit={(e) => void joinGroup(e)}>
+            <label htmlFor="invite-code">8-character code</label>
+            <input
+              id="invite-code"
+              type="text"
+              value={inviteInput}
+              onChange={(e) => setInviteInput(e.target.value.toUpperCase())}
+              placeholder="AB12CD34"
+              maxLength={8}
+              autoCapitalize="characters"
+            />
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              Join group
+            </button>
+          </form>
         </div>
 
         <div className="section">
-          <h3 className="section-title">Members ({members.length})</h3>
-          {members.length === 0 ? (
-            <p className="empty-state">No members yet.</p>
-          ) : (
-            <ul className="member-list">
-              {members.map((member) => (
-                <li key={member.id} className="member-item">
-                  <span className="member-name">
-                    {member.display_name}
-                    {member.id === userId ? " (you)" : ""}
-                  </span>
-                  <span className="member-meta">
-                    {member.total_steps.toLocaleString()} steps
-                    <br />
-                    {getProgressPercent(member.total_steps)}%
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        <div className="row-actions">
-          <button
-            type="button"
-            className="btn btn-danger"
-            onClick={() => void leaveGroup()}
-            disabled={loading}
-          >
-            Leave group
-          </button>
+          <h2 className="section-title">Create a new fellowship</h2>
+          <form onSubmit={(e) => void createGroup(e)}>
+            <label htmlFor="group-name">Group name</label>
+            <input
+              id="group-name"
+              type="text"
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              placeholder="The Fellowship"
+              maxLength={60}
+            />
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              Create group
+            </button>
+          </form>
         </div>
 
         {message && (

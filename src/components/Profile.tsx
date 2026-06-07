@@ -246,21 +246,23 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
         </div>
 
         <div className="section">
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => void logout()}
-          >
-            Log out
-          </button>
-          <button
-            type="button"
-            className="btn btn-danger"
-            onClick={() => void deleteAccount()}
-            disabled={deleting}
-          >
-            {deleting ? "Deleting…" : "Delete account"}
-          </button>
+          <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => void logout()}
+            >
+              Log out
+            </button>
+            <button
+              type="button"
+              className="btn btn-danger"
+              onClick={() => void deleteAccount()}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting…" : "Delete account"}
+            </button>
+          </div>
           <p className="profile-legal">
             <a href="/privacy-policy.html">Privacy Policy</a>
           </p>

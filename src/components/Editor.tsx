@@ -398,7 +398,16 @@ export default function Editor() {
                 <svg
                   className="map-path-svg"
                   viewBox={`0 0 ${imageSize.width} ${imageSize.height}`}
-                  style={{ position: "absolute", inset: 0, width: imageSize.width, height: imageSize.height, overflow: "visible" }}
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    width: imageSize.width,
+                    height: imageSize.height,
+                    overflow: "hidden",
+                    // Own GPU layer: path edits don't force the image layer to re-raster (no black-tile flashes)
+                    transform: "translateZ(0)",
+                    backfaceVisibility: "hidden",
+                  }}
                 >
                   {/* Invisible wide stroke for right-click hit testing */}
                   {points.length >= 2 && (
