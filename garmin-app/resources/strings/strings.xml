@@ -1,7 +1,7 @@
 <strings>
     <string id="AppName">Camino de Mount Doom</string>
     <string id="ApiKeyTitle">API Key</string>
-    <string id="ApiKeyPrompt">Set via the Connect IQ settings page after signing in at camino-de-mount-doom.netlify.app</string>
+    <string id="ApiKeyPrompt">Sign in at camino-de-mount-doom.netlify.app, open your profile, and copy the API key shown there.</string>
     <string id="ShareStepsTitle">Share My Steps</string>
     <string id="ShareStepsPrompt">Allow this app to upload your daily step count to your group. Required for progress tracking. Privacy policy: camino-de-mount-doom.netlify.app/privacy-policy.html</string>
 </strings>

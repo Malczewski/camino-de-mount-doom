@@ -14,6 +14,8 @@ interface ProfileProps {
 export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileProps) {
   const [totalSteps, setTotalSteps] = useState(0);
   const [displayName, setDisplayName] = useState("");
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const [apiKeyCopied, setApiKeyCopied] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState("");
   const [savingName, setSavingName] = useState(false);
@@ -28,7 +30,7 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
     const loadProfile = async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("display_name, total_steps")
+        .select("display_name, total_steps, api_key")
         .eq("id", userId)
         .single();
 
@@ -37,6 +39,7 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
       } else if (data) {
         setDisplayName(data.display_name ?? "");
         setTotalSteps(data.total_steps ?? 0);
+        setApiKey(data.api_key ?? null);
       }
       setLoading(false);
     };
@@ -166,6 +169,13 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
     onAccountDeleted();
   };
 
+  const copyApiKey = async () => {
+    if (!apiKey) return;
+    await navigator.clipboard.writeText(apiKey);
+    setApiKeyCopied(true);
+    setTimeout(() => setApiKeyCopied(false), 2000);
+  };
+
   const progress = getProgressPercent(totalSteps);
   const landmark = getNearestLandmark(totalSteps);
 
@@ -244,6 +254,37 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
           <span className="profile-stat-label">Nearest landmark</span>
           <span className="profile-stat-value">{landmark.name}</span>
         </div>
+
+        {apiKey && (
+          <div className="section">
+            <h3 className="section-title">Garmin watch setup</h3>
+            <p style={{ fontSize: "0.875rem", color: "#6e6e73", marginBottom: "0.75rem" }}>
+              In the Garmin Connect IQ app, open this app's settings and paste your API key into the "API Key" field.
+            </p>
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+              <code style={{
+                flex: 1,
+                background: "#f5f5f7",
+                border: "1px solid #d2d2d7",
+                borderRadius: "6px",
+                padding: "8px 10px",
+                fontSize: "0.8rem",
+                wordBreak: "break-all",
+                color: "#1d1d1f",
+              }}>
+                {apiKey}
+              </code>
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => void copyApiKey()}
+                style={{ whiteSpace: "nowrap" }}
+              >
+                {apiKeyCopied ? "Copied!" : "Copy"}
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="section">
           <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>

@@ -77,7 +77,7 @@ class AppView extends WatchUi.View {
         var hasKey = apiKey instanceof Lang.String && (apiKey as Lang.String).length() > 0;
 
         if (!hasKey) {
-            drawCentered(dc, "No API Key\nOpen app\nsettings");
+            drawCentered(dc, "No API Key\nSet in Garmin\nConnect IQ app");
             return;
         }
 

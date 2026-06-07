@@ -301,9 +301,6 @@ export default function App() {
               {t.charAt(0).toUpperCase() + t.slice(1)}
             </button>
           ))}
-          <a href="#editor" className="nav-tab nav-tab-editor" title="Path Editor">
-            ✎
-          </a>
         </div>
       </nav>
 

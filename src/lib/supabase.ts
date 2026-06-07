@@ -22,6 +22,7 @@ export interface Profile {
   id: string;
   display_name: string | null;
   total_steps: number;
+  api_key: string | null;
 }
 
 export interface Group {
