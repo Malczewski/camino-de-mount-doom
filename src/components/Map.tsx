@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   loadRouteConfig,
   getRoutePosition,
@@ -33,6 +34,7 @@ export default function Map({
   activeGroupId,
   onActiveGroupChange,
 }: MapProps) {
+  const { t } = useTranslation();
   const viewportRef = useRef<HTMLDivElement>(null);
   // Canvas renders the map image AND the route path — everything is rasterized
   // at viewport resolution every frame, so GPU texture memory is constant and
@@ -369,7 +371,7 @@ export default function Map({
               >
                 <span className={`marker-dot${member.id === currentUserId ? " self" : ""}`} />
                 <span className="marker-label">
-                  {member.display_name || "Traveler"}
+                  {member.display_name || t("map.traveler")}
                 </span>
               </div>
             );
@@ -408,8 +410,8 @@ export default function Map({
           }}
         >
           {userGroups.length === 0
-            ? "Join a group to see fellow travelers on the map"
-            : "No travelers in this fellowship yet"}
+            ? t("map.joinGroupPrompt")
+            : t("map.noTravelers")}
         </div>
       )}
     </div>

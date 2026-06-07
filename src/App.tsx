@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import type { Session } from "@supabase/supabase-js";
 import GroupScreen from "./components/Group";
 import MapView from "./components/Map";
@@ -8,7 +9,22 @@ import { supabase, type Group, type GroupMember } from "./lib/supabase";
 type Tab = "map" | "group" | "profile";
 type AuthMode = "login" | "signup" | "forgot";
 
+function LangToggle() {
+  const { i18n } = useTranslation();
+  return (
+    <button
+      type="button"
+      className="link-btn"
+      style={{ fontSize: "0.75rem", opacity: 0.7 }}
+      onClick={() => void i18n.changeLanguage(i18n.language === "uk" ? "en" : "uk")}
+    >
+      {i18n.language === "uk" ? "EN" : "UA"}
+    </button>
+  );
+}
+
 function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,7 +41,7 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
     if (mode === "forgot") {
       const trimmedEmail = email.trim();
       if (!trimmedEmail) {
-        setMessage({ text: "Enter your email.", type: "error" });
+        setMessage({ text: t("auth.enterEmail"), type: "error" });
         return;
       }
       setLoading(true);
@@ -36,21 +52,18 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
       if (error) {
         setMessage({ text: error.message, type: "error" });
       } else {
-        setMessage({ text: "Check your email for a reset link.", type: "success" });
+        setMessage({ text: t("auth.checkEmailReset"), type: "success" });
       }
       return;
     }
 
     const trimmedEmail = email.trim();
     if (!trimmedEmail || !password) {
-      setMessage({ text: "Enter email and password.", type: "error" });
+      setMessage({ text: t("auth.enterEmailAndPassword"), type: "error" });
       return;
     }
     if (password.length < 6) {
-      setMessage({
-        text: "Password must be at least 6 characters.",
-        type: "error",
-      });
+      setMessage({ text: t("auth.passwordTooShort"), type: "error" });
       return;
     }
 
@@ -74,16 +87,13 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
         if (data.session) {
           onAuthenticated();
         } else {
-          setMessage({
-            text: "Account created! Check your email to confirm, then sign in.",
-            type: "success",
-          });
+          setMessage({ text: t("auth.accountCreated"), type: "success" });
           setMode("login");
         }
       }
     } catch (err) {
       setMessage({
-        text: err instanceof Error ? err.message : "Something went wrong.",
+        text: err instanceof Error ? err.message : t("auth.somethingWentWrong"),
         type: "error",
       });
     } finally {
@@ -95,11 +105,14 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
     return (
       <div className="auth-screen">
         <div className="card auth-card">
-          <h1>Reset password</h1>
-          <p className="subtitle">Enter your email and we'll send you a reset link.</p>
+          <div style={{ textAlign: "right", marginBottom: "0.25rem" }}>
+            <LangToggle />
+          </div>
+          <h1>{t("auth.resetPassword")}</h1>
+          <p className="subtitle">{t("auth.resetSubtitle")}</p>
 
           <form onSubmit={(e) => void handleSubmit(e)}>
-            <label htmlFor="email">Email</label>
+            <label htmlFor="email">{t("auth.email")}</label>
             <input
               id="email"
               type="email"
@@ -109,7 +122,7 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
               required
             />
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              {loading ? "Sending…" : "Send reset link"}
+              {loading ? t("auth.sending") : t("auth.sendResetLink")}
             </button>
           </form>
 
@@ -119,7 +132,7 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
               className="link-btn"
               onClick={() => { setMode("login"); setMessage(null); }}
             >
-              Back to sign in
+              {t("auth.backToSignIn")}
             </button>
           </div>
 
@@ -134,15 +147,16 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
   return (
     <div className="auth-screen">
       <div className="card auth-card">
-        <h1>{mode === "login" ? "Sign in" : "Sign up"}</h1>
+        <div style={{ textAlign: "right", marginBottom: "0.25rem" }}>
+          <LangToggle />
+        </div>
+        <h1>{mode === "login" ? t("auth.signIn") : t("auth.signUp")}</h1>
         <p className="subtitle">
-          {mode === "login"
-            ? "Bag End to Mount Doom"
-            : "Create an account to begin your journey"}
+          {mode === "login" ? t("auth.signInSubtitle") : t("auth.signUpSubtitle")}
         </p>
 
         <form onSubmit={(e) => void handleSubmit(e)}>
-          <label htmlFor="email">Email</label>
+          <label htmlFor="email">{t("auth.email")}</label>
           <input
             id="email"
             type="email"
@@ -152,7 +166,7 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
             required
           />
 
-          <label htmlFor="password">Password</label>
+          <label htmlFor="password">{t("auth.password")}</label>
           <input
             id="password"
             type="password"
@@ -172,7 +186,7 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
                 className="link-btn"
                 onClick={() => { setMode("forgot"); setMessage(null); }}
               >
-                Forgot password?
+                {t("auth.forgotPassword")}
               </button>
             </div>
           )}
@@ -180,16 +194,16 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading
               ? mode === "login"
-                ? "Signing in…"
-                : "Creating account…"
+                ? t("auth.signingIn")
+                : t("auth.creatingAccount")
               : mode === "login"
-                ? "Sign in"
-                : "Sign up"}
+                ? t("auth.signIn")
+                : t("auth.signUp")}
           </button>
         </form>
 
         <div className="toggle-row">
-          {mode === "login" ? "Don't have an account?" : "Already have an account?"}{" "}
+          {mode === "login" ? t("auth.noAccount") : t("auth.alreadyHaveAccount")}{" "}
           <button
             type="button"
             className="link-btn"
@@ -198,7 +212,7 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
               setMessage(null);
             }}
           >
-            {mode === "login" ? "Sign up" : "Sign in"}
+            {mode === "login" ? t("auth.signUp") : t("auth.signIn")}
           </button>
         </div>
 
@@ -211,6 +225,7 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
 }
 
 function ResetPasswordForm({ onDone }: { onDone: () => void }) {
+  const { t } = useTranslation();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
@@ -222,7 +237,7 @@ function ResetPasswordForm({ onDone }: { onDone: () => void }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirm) {
-      setMessage({ text: "Passwords don't match.", type: "error" });
+      setMessage({ text: t("auth.passwordsDoNotMatch"), type: "error" });
       return;
     }
     setLoading(true);
@@ -231,7 +246,7 @@ function ResetPasswordForm({ onDone }: { onDone: () => void }) {
     if (error) {
       setMessage({ text: error.message, type: "error" });
     } else {
-      setMessage({ text: "Password updated! Signing you in…", type: "success" });
+      setMessage({ text: t("auth.passwordUpdated"), type: "success" });
       setTimeout(onDone, 1500);
     }
   };
@@ -239,10 +254,13 @@ function ResetPasswordForm({ onDone }: { onDone: () => void }) {
   return (
     <div className="auth-screen">
       <div className="card auth-card">
-        <h1>Set new password</h1>
+        <div style={{ textAlign: "right", marginBottom: "0.25rem" }}>
+          <LangToggle />
+        </div>
+        <h1>{t("auth.setNewPassword")}</h1>
 
         <form onSubmit={(e) => void handleSubmit(e)}>
-          <label htmlFor="password">New password</label>
+          <label htmlFor="password">{t("auth.newPassword")}</label>
           <input
             id="password"
             type="password"
@@ -252,7 +270,7 @@ function ResetPasswordForm({ onDone }: { onDone: () => void }) {
             minLength={6}
             required
           />
-          <label htmlFor="confirm">Confirm password</label>
+          <label htmlFor="confirm">{t("auth.confirmPassword")}</label>
           <input
             id="confirm"
             type="password"
@@ -263,7 +281,7 @@ function ResetPasswordForm({ onDone }: { onDone: () => void }) {
             required
           />
           <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? "Saving…" : "Set password"}
+            {loading ? t("auth.saving") : t("auth.setPassword")}
           </button>
         </form>
 
@@ -276,6 +294,7 @@ function ResetPasswordForm({ onDone }: { onDone: () => void }) {
 }
 
 export default function App() {
+  const { t, i18n } = useTranslation();
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
   const [isRecovery, setIsRecovery] = useState(
@@ -421,7 +440,7 @@ export default function App() {
   if (!authReady) {
     return (
       <div className="auth-screen">
-        <p className="subtitle">Loading…</p>
+        <p className="subtitle">{t("auth.loading")}</p>
       </div>
     );
   }
@@ -437,19 +456,27 @@ export default function App() {
   return (
     <div className="app-shell">
       <nav className="top-nav">
-        <span className="app-title">Camino de Mt.Doom</span>
+        <span className="app-title">{t("nav.appTitle")}</span>
         <div className="nav-tabs">
-          {(["map", "group", "profile"] as const).map((t) => (
+          {(["map", "group", "profile"] as const).map((tabId) => (
             <button
-              key={t}
+              key={tabId}
               type="button"
-              className={`nav-tab${tab === t ? " active" : ""}`}
-              onClick={() => setTab(t)}
+              className={`nav-tab${tab === tabId ? " active" : ""}`}
+              onClick={() => setTab(tabId)}
             >
-              {t.charAt(0).toUpperCase() + t.slice(1)}
+              {t(`nav.${tabId}`)}
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          className="link-btn"
+          style={{ fontSize: "0.75rem", opacity: 0.7, marginLeft: "0.5rem" }}
+          onClick={() => void i18n.changeLanguage(i18n.language === "uk" ? "en" : "uk")}
+        >
+          {i18n.language === "uk" ? "EN" : "UA"}
+        </button>
       </nav>
 
       <main className={`main-content${tab === "map" ? " map-main" : ""}`}>

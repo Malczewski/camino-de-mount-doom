@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import {
   getNearestLandmark,
   getProgressPercent,
@@ -12,6 +13,7 @@ interface ProfileProps {
 }
 
 export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileProps) {
+  const { t, i18n } = useTranslation();
   const [totalSteps, setTotalSteps] = useState(0);
   const [displayName, setDisplayName] = useState("");
   const [apiKey, setApiKey] = useState<string | null>(null);
@@ -125,7 +127,7 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
 
     setDisplayName(trimmed);
     setEditingName(false);
-    setMessage({ text: "Name updated!", type: "success" });
+    setMessage({ text: t("profile.nameUpdated"), type: "success" });
   };
 
   const cancelEditName = () => {
@@ -135,11 +137,11 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
 
   const changePassword = async () => {
     if (newPassword !== confirmPassword) {
-      setMessage({ text: "Passwords don't match.", type: "error" });
+      setMessage({ text: t("profile.passwordsDoNotMatch"), type: "error" });
       return;
     }
     if (newPassword.length < 6) {
-      setMessage({ text: "Password must be at least 6 characters.", type: "error" });
+      setMessage({ text: t("profile.passwordTooShort"), type: "error" });
       return;
     }
     setSavingPassword(true);
@@ -149,7 +151,7 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
     if (error) {
       setMessage({ text: error.message, type: "error" });
     } else {
-      setMessage({ text: "Password changed!", type: "success" });
+      setMessage({ text: t("profile.passwordChanged"), type: "success" });
       setChangingPassword(false);
       setNewPassword("");
       setConfirmPassword("");
@@ -166,9 +168,7 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
   };
 
   const deleteAccount = async () => {
-    const confirmed = window.confirm(
-      "Delete your account permanently? This cannot be undone.",
-    );
+    const confirmed = window.confirm(t("profile.deleteConfirm"));
     if (!confirmed) return;
 
     setDeleting(true);
@@ -210,7 +210,7 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
     return (
       <div className="screen">
         <div className="card">
-          <p className="empty-state">Loading profile…</p>
+          <p className="empty-state">{t("profile.loadingProfile")}</p>
         </div>
       </div>
     );
@@ -219,17 +219,17 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
   return (
     <div className="screen">
       <div className="card">
-        <h2 className="section-title">{displayName || "Your journey"}</h2>
+        <h2 className="section-title">{displayName || t("profile.yourJourney")}</h2>
 
         <div className="section">
-          <h3 className="section-title">Display name</h3>
+          <h3 className="section-title">{t("profile.displayName")}</h3>
           {editingName ? (
             <div className="name-edit-row">
               <input
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
-                placeholder="Your name"
+                placeholder={t("profile.yourName")}
                 maxLength={60}
                 autoFocus
                 style={{ marginBottom: 0 }}
@@ -240,7 +240,7 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
                 onClick={() => void saveName()}
                 disabled={savingName}
               >
-                {savingName ? "Saving…" : "Save"}
+                {savingName ? t("profile.saving") : t("profile.save")}
               </button>
               <button
                 type="button"
@@ -248,45 +248,45 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
                 onClick={cancelEditName}
                 disabled={savingName}
               >
-                Cancel
+                {t("profile.cancel")}
               </button>
             </div>
           ) : (
             <div className="name-display-row">
               <span className="profile-name-value">
-                {displayName || <em style={{ color: "#6e6e73" }}>No name set</em>}
+                {displayName || <em style={{ color: "#6e6e73" }}>{t("profile.noNameSet")}</em>}
               </span>
               <button
                 type="button"
                 className="btn btn-secondary btn-sm"
                 onClick={startEditingName}
               >
-                Edit
+                {t("profile.edit")}
               </button>
             </div>
           )}
         </div>
 
         <div className="profile-stat">
-          <span className="profile-stat-label">Total steps</span>
+          <span className="profile-stat-label">{t("profile.totalSteps")}</span>
           <span className="profile-stat-value">
-            {totalSteps.toLocaleString()}
+            {totalSteps.toLocaleString(i18n.language)}
           </span>
         </div>
         <div className="profile-stat">
-          <span className="profile-stat-label">Progress to Mount Doom</span>
+          <span className="profile-stat-label">{t("profile.progressToMountDoom")}</span>
           <span className="profile-stat-value">{progress}%</span>
         </div>
         <div className="profile-stat">
-          <span className="profile-stat-label">Nearest landmark</span>
+          <span className="profile-stat-label">{t("profile.nearestLandmark")}</span>
           <span className="profile-stat-value">{landmark.name}</span>
         </div>
 
         {apiKey && (
           <div className="section">
-            <h3 className="section-title">Garmin watch setup</h3>
+            <h3 className="section-title">{t("profile.garminSetup")}</h3>
             <p style={{ fontSize: "0.875rem", color: "#6e6e73", marginBottom: "0.75rem" }}>
-              In the Garmin Connect IQ app, open this app's settings and paste your API key into the "API Key" field.
+              {t("profile.garminInstructions")}
             </p>
             <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
               <code style={{
@@ -307,19 +307,19 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
                 onClick={() => void copyApiKey()}
                 style={{ whiteSpace: "nowrap" }}
               >
-                {apiKeyCopied ? "Copied!" : "Copy"}
+                {apiKeyCopied ? t("profile.copied") : t("profile.copy")}
               </button>
             </div>
           </div>
         )}
 
         <div className="section">
-          <h3 className="section-title">Password</h3>
+          <h3 className="section-title">{t("profile.password")}</h3>
           {changingPassword ? (
             <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
               <input
                 type="password"
-                placeholder="New password"
+                placeholder={t("profile.newPassword")}
                 autoComplete="new-password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
@@ -328,7 +328,7 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
               />
               <input
                 type="password"
-                placeholder="Confirm password"
+                placeholder={t("profile.confirmPassword")}
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -342,7 +342,7 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
                   onClick={() => void changePassword()}
                   disabled={savingPassword}
                 >
-                  {savingPassword ? "Saving…" : "Save"}
+                  {savingPassword ? t("profile.saving") : t("profile.save")}
                 </button>
                 <button
                   type="button"
@@ -354,7 +354,7 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
                   }}
                   disabled={savingPassword}
                 >
-                  Cancel
+                  {t("profile.cancel")}
                 </button>
               </div>
             </div>
@@ -364,7 +364,7 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
               className="btn btn-secondary"
               onClick={() => { setChangingPassword(true); setMessage(null); }}
             >
-              Change password
+              {t("profile.changePassword")}
             </button>
           )}
         </div>
@@ -376,7 +376,7 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
               className="btn btn-secondary"
               onClick={() => void logout()}
             >
-              Log out
+              {t("profile.logOut")}
             </button>
             <button
               type="button"
@@ -384,7 +384,7 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
               onClick={() => void deleteAccount()}
               disabled={deleting}
             >
-              {deleting ? "Deleting…" : "Delete account"}
+              {deleting ? t("profile.deleting") : t("profile.deleteAccount")}
             </button>
           </div>
           <p className="profile-legal">

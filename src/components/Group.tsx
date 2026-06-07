@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { getProgressPercent } from "../lib/mapPosition";
 import { supabase, type Group, type GroupMember } from "../lib/supabase";
 
@@ -25,6 +26,7 @@ export default function GroupScreen({
   onGroupsChange,
   onActiveGroupChange,
 }: GroupProps) {
+  const { t, i18n } = useTranslation();
   const [groupMemberMap, setGroupMemberMap] = useState<Record<string, GroupMember[]>>({});
   const [copiedGroupId, setCopiedGroupId] = useState<string | null>(null);
   const [groupName, setGroupName] = useState("");
@@ -86,7 +88,7 @@ export default function GroupScreen({
     e.preventDefault();
     const name = groupName.trim();
     if (!name) {
-      setMessage({ text: "Enter a group name.", type: "error" });
+      setMessage({ text: t("group.enterGroupName"), type: "error" });
       return;
     }
 
@@ -102,7 +104,7 @@ export default function GroupScreen({
 
     if (createError || !newGroup) {
       setMessage({
-        text: createError?.message ?? "Could not create group.",
+        text: createError?.message ?? t("group.couldNotCreate"),
         type: "error",
       });
       setLoading(false);
@@ -123,14 +125,14 @@ export default function GroupScreen({
     await onGroupsChange();
     onActiveGroupChange(newGroup.id);
     setLoading(false);
-    setMessage({ text: `"${name}" created!`, type: "success" });
+    setMessage({ text: t("group.groupCreated", { name }), type: "success" });
   };
 
   const joinGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     const code = inviteInput.trim().toUpperCase();
     if (code.length !== 8) {
-      setMessage({ text: "Invite code must be 8 characters.", type: "error" });
+      setMessage({ text: t("group.inviteCodeLength"), type: "error" });
       return;
     }
 
@@ -145,7 +147,7 @@ export default function GroupScreen({
 
     if (findError || !found) {
       setMessage({
-        text: findError?.message ?? "Group not found. Check the invite code.",
+        text: findError?.message ?? t("group.groupNotFound"),
         type: "error",
       });
       setLoading(false);
@@ -153,7 +155,7 @@ export default function GroupScreen({
     }
 
     if (userGroups.some((g) => g.id === found.id)) {
-      setMessage({ text: "You're already in this group.", type: "error" });
+      setMessage({ text: t("group.alreadyInGroup"), type: "error" });
       setLoading(false);
       return;
     }
@@ -172,7 +174,7 @@ export default function GroupScreen({
     await onGroupsChange();
     onActiveGroupChange(found.id);
     setLoading(false);
-    setMessage({ text: `Joined "${found.name}"!`, type: "success" });
+    setMessage({ text: t("group.groupJoined", { name: found.name }), type: "success" });
   };
 
   const leaveGroup = async (groupId: string) => {
@@ -203,7 +205,7 @@ export default function GroupScreen({
       return next;
     });
     setLoading(false);
-    setMessage({ text: "You left the group.", type: "success" });
+    setMessage({ text: t("group.groupLeft"), type: "success" });
   };
 
   const copyInviteCode = async (group: Group) => {
@@ -212,7 +214,7 @@ export default function GroupScreen({
       setCopiedGroupId(group.id);
       setTimeout(() => setCopiedGroupId(null), 2000);
     } catch {
-      setMessage({ text: "Could not copy to clipboard.", type: "error" });
+      setMessage({ text: t("group.couldNotCopy"), type: "error" });
     }
   };
 
@@ -221,7 +223,7 @@ export default function GroupScreen({
       {userGroups.length === 0 && (
         <div className="card">
           <p className="empty-state" style={{ paddingBottom: 0 }}>
-            You haven't joined any fellowship yet.
+            {t("group.noFellowship")}
           </p>
         </div>
       )}
@@ -235,25 +237,31 @@ export default function GroupScreen({
               <div>
                 <h2 className="section-title" style={{ marginBottom: 2 }}>{group.name}</h2>
                 <p className="group-start-date">
-                  Tracking since {new Date(group.created_at).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                  {t("group.trackingSince", {
+                    date: new Date(group.created_at).toLocaleDateString(i18n.language, {
+                      year: "numeric",
+                      month: "short",
+                      day: "numeric",
+                    }),
+                  })}
                 </p>
               </div>
               {isActive ? (
-                <span className="group-active-badge">On map</span>
+                <span className="group-active-badge">{t("group.onMap")}</span>
               ) : (
                 <button
                   type="button"
                   className="btn btn-secondary btn-sm"
                   onClick={() => onActiveGroupChange(group.id)}
                 >
-                  View on map
+                  {t("group.viewOnMap")}
                 </button>
               )}
             </div>
 
             <div className="section">
               <p className="subtitle" style={{ marginBottom: 8, textAlign: "left" }}>
-                Invite code
+                {t("group.inviteCode")}
               </p>
               <div className="invite-row">
                 <div className="invite-code">{group.invite_code}</div>
@@ -262,25 +270,25 @@ export default function GroupScreen({
                   className="btn btn-secondary"
                   onClick={() => void copyInviteCode(group)}
                 >
-                  {copiedGroupId === group.id ? "Copied!" : "Copy"}
+                  {copiedGroupId === group.id ? t("group.copied") : t("group.copy")}
                 </button>
               </div>
             </div>
 
             <div className="section">
-              <h3 className="section-title">Members ({members.length})</h3>
+              <h3 className="section-title">{t("group.members", { count: members.length })}</h3>
               {members.length === 0 ? (
-                <p className="empty-state">No members yet.</p>
+                <p className="empty-state">{t("group.noMembers")}</p>
               ) : (
                 <ul className="member-list">
                   {members.map((member) => (
                     <li key={member.id} className="member-item">
                       <span className="member-name">
                         {member.display_name}
-                        {member.id === userId ? " (you)" : ""}
+                        {member.id === userId ? t("group.you") : ""}
                       </span>
                       <span className="member-meta">
-                        {member.group_steps.toLocaleString()} steps
+                        {member.group_steps.toLocaleString(i18n.language)} {t("group.steps")}
                         <br />
                         {getProgressPercent(member.group_steps)}%
                       </span>
@@ -297,7 +305,7 @@ export default function GroupScreen({
                 onClick={() => void leaveGroup(group.id)}
                 disabled={loading}
               >
-                Leave group
+                {t("group.leaveGroup")}
               </button>
             </div>
           </div>
@@ -306,9 +314,9 @@ export default function GroupScreen({
 
       <div className="card">
         <div className="section">
-          <h2 className="section-title">Join with invite code</h2>
+          <h2 className="section-title">{t("group.joinWithCode")}</h2>
           <form onSubmit={(e) => void joinGroup(e)}>
-            <label htmlFor="invite-code">8-character code</label>
+            <label htmlFor="invite-code">{t("group.eightCharCode")}</label>
             <input
               id="invite-code"
               type="text"
@@ -319,25 +327,25 @@ export default function GroupScreen({
               autoCapitalize="characters"
             />
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              Join group
+              {t("group.joinGroup")}
             </button>
           </form>
         </div>
 
         <div className="section">
-          <h2 className="section-title">Create a new fellowship</h2>
+          <h2 className="section-title">{t("group.createFellowship")}</h2>
           <form onSubmit={(e) => void createGroup(e)}>
-            <label htmlFor="group-name">Group name</label>
+            <label htmlFor="group-name">{t("group.groupName")}</label>
             <input
               id="group-name"
               type="text"
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
-              placeholder="The Fellowship"
+              placeholder={t("group.createFellowship")}
               maxLength={60}
             />
             <button type="submit" className="btn btn-primary" disabled={loading}>
-              Create group
+              {t("group.createGroup")}
             </button>
           </form>
         </div>
