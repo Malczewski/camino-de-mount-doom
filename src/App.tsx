@@ -6,7 +6,7 @@ import Profile from "./components/Profile";
 import { supabase, type Group, type GroupMember } from "./lib/supabase";
 
 type Tab = "map" | "group" | "profile";
-type AuthMode = "login" | "signup";
+type AuthMode = "login" | "signup" | "forgot";
 
 function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
   const [mode, setMode] = useState<AuthMode>("login");
@@ -21,6 +21,25 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
+
+    if (mode === "forgot") {
+      const trimmedEmail = email.trim();
+      if (!trimmedEmail) {
+        setMessage({ text: "Enter your email.", type: "error" });
+        return;
+      }
+      setLoading(true);
+      const { error } = await supabase.auth.resetPasswordForEmail(trimmedEmail, {
+        redirectTo: window.location.origin,
+      });
+      setLoading(false);
+      if (error) {
+        setMessage({ text: error.message, type: "error" });
+      } else {
+        setMessage({ text: "Check your email for a reset link.", type: "success" });
+      }
+      return;
+    }
 
     const trimmedEmail = email.trim();
     if (!trimmedEmail || !password) {
@@ -72,6 +91,46 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
     }
   };
 
+  if (mode === "forgot") {
+    return (
+      <div className="auth-screen">
+        <div className="card auth-card">
+          <h1>Reset password</h1>
+          <p className="subtitle">Enter your email and we'll send you a reset link.</p>
+
+          <form onSubmit={(e) => void handleSubmit(e)}>
+            <label htmlFor="email">Email</label>
+            <input
+              id="email"
+              type="email"
+              autoComplete="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+            <button type="submit" className="btn btn-primary" disabled={loading}>
+              {loading ? "Sending…" : "Send reset link"}
+            </button>
+          </form>
+
+          <div className="toggle-row">
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => { setMode("login"); setMessage(null); }}
+            >
+              Back to sign in
+            </button>
+          </div>
+
+          {message && (
+            <div className={`message ${message.type}`}>{message.text}</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="auth-screen">
       <div className="card auth-card">
@@ -106,6 +165,18 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
             required
           />
 
+          {mode === "login" && (
+            <div style={{ textAlign: "right", marginTop: "-0.5rem", marginBottom: "1rem" }}>
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() => { setMode("forgot"); setMessage(null); }}
+              >
+                Forgot password?
+              </button>
+            </div>
+          )}
+
           <button type="submit" className="btn btn-primary" disabled={loading}>
             {loading
               ? mode === "login"
@@ -139,9 +210,77 @@ function LoginForm({ onAuthenticated }: { onAuthenticated: () => void }) {
   );
 }
 
+function ResetPasswordForm({ onDone }: { onDone: () => void }) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<{
+    text: string;
+    type: "error" | "success";
+  } | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password !== confirm) {
+      setMessage({ text: "Passwords don't match.", type: "error" });
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.updateUser({ password });
+    setLoading(false);
+    if (error) {
+      setMessage({ text: error.message, type: "error" });
+    } else {
+      setMessage({ text: "Password updated! Signing you in…", type: "success" });
+      setTimeout(onDone, 1500);
+    }
+  };
+
+  return (
+    <div className="auth-screen">
+      <div className="card auth-card">
+        <h1>Set new password</h1>
+
+        <form onSubmit={(e) => void handleSubmit(e)}>
+          <label htmlFor="password">New password</label>
+          <input
+            id="password"
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            minLength={6}
+            required
+          />
+          <label htmlFor="confirm">Confirm password</label>
+          <input
+            id="confirm"
+            type="password"
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            minLength={6}
+            required
+          />
+          <button type="submit" className="btn btn-primary" disabled={loading}>
+            {loading ? "Saving…" : "Set password"}
+          </button>
+        </form>
+
+        {message && (
+          <div className={`message ${message.type}`}>{message.text}</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
   const [authReady, setAuthReady] = useState(false);
+  const [isRecovery, setIsRecovery] = useState(
+    () => window.location.hash.includes("type=recovery"),
+  );
   const [tab, setTab] = useState<Tab>("map");
   const [userGroups, setUserGroups] = useState<Group[]>([]);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
@@ -201,7 +340,12 @@ export default function App() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setIsRecovery(true);
+      } else if (event === "USER_UPDATED") {
+        setIsRecovery(false);
+      }
       setSession(nextSession);
       if (nextSession?.user.id) {
         void loadUserGroups(nextSession.user.id);
@@ -280,6 +424,10 @@ export default function App() {
         <p className="subtitle">Loading…</p>
       </div>
     );
+  }
+
+  if (isRecovery && session) {
+    return <ResetPasswordForm onDone={() => setIsRecovery(false)} />;
   }
 
   if (!session) {

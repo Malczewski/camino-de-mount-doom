@@ -25,6 +25,10 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
     text: string;
     type: "error" | "success";
   } | null>(null);
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -127,6 +131,29 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
   const cancelEditName = () => {
     setEditingName(false);
     setNewName("");
+  };
+
+  const changePassword = async () => {
+    if (newPassword !== confirmPassword) {
+      setMessage({ text: "Passwords don't match.", type: "error" });
+      return;
+    }
+    if (newPassword.length < 6) {
+      setMessage({ text: "Password must be at least 6 characters.", type: "error" });
+      return;
+    }
+    setSavingPassword(true);
+    setMessage(null);
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    setSavingPassword(false);
+    if (error) {
+      setMessage({ text: error.message, type: "error" });
+    } else {
+      setMessage({ text: "Password changed!", type: "success" });
+      setChangingPassword(false);
+      setNewPassword("");
+      setConfirmPassword("");
+    }
   };
 
   const logout = async () => {
@@ -285,6 +312,62 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
             </div>
           </div>
         )}
+
+        <div className="section">
+          <h3 className="section-title">Password</h3>
+          {changingPassword ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <input
+                type="password"
+                placeholder="New password"
+                autoComplete="new-password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                minLength={6}
+                style={{ marginBottom: 0 }}
+              />
+              <input
+                type="password"
+                placeholder="Confirm password"
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                minLength={6}
+                style={{ marginBottom: 0 }}
+              />
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button
+                  type="button"
+                  className="btn btn-primary btn-sm"
+                  onClick={() => void changePassword()}
+                  disabled={savingPassword}
+                >
+                  {savingPassword ? "Saving…" : "Save"}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => {
+                    setChangingPassword(false);
+                    setNewPassword("");
+                    setConfirmPassword("");
+                  }}
+                  disabled={savingPassword}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => { setChangingPassword(true); setMessage(null); }}
+            >
+              Change password
+            </button>
+          )}
+        </div>
 
         <div className="section">
           <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
