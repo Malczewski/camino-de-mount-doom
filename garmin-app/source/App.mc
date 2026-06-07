@@ -15,14 +15,19 @@ class App extends Application.AppBase {
     }
 
     function getInitialView() as [WatchUi.Views] or [WatchUi.Views, WatchUi.InputDelegates] {
-        return [new AppView()];
+        return [new AppView(), new AppInputDelegate()];
     }
 
     function onStart(state as Lang.Dictionary?) as Void {
         registerBackgroundSync();
-        var apiKey = Application.Properties.getValue("api_key");
-        if (apiKey == null || !(apiKey instanceof Lang.String) || (apiKey as Lang.String).length() == 0) {
-            Communications.openWebPage(SETTINGS_URL, null, null);
+        // Open setup page on first launch or when API key is missing
+        var launched = Application.Storage.getValue("launched");
+        if (launched == null) {
+            Application.Storage.setValue("launched", true);
+            var apiKey = Application.Properties.getValue("api_key");
+            if (apiKey == null || !(apiKey instanceof Lang.String) || (apiKey as Lang.String).length() == 0) {
+                Communications.openWebPage(SETTINGS_URL, null, null);
+            }
         }
     }
 

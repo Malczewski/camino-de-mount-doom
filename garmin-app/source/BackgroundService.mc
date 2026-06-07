@@ -20,8 +20,10 @@ class BackgroundService extends System.ServiceDelegate {
     }
 
     function onWebResponse(responseCode as Lang.Number, data as Lang.Dictionary or Lang.String or Null) as Void {
-        StepSync.log("onWebResponse: " + responseCode + " data=" + data);
-        if (responseCode < 200 || responseCode >= 300) {
+        StepSync.log("onWebResponse: " + responseCode);
+        if (responseCode >= 200 && responseCode < 300) {
+            StepSync.markSynced();
+        } else {
             StepSync.log("Step sync failed with status " + responseCode);
         }
     }

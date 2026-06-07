@@ -1,4 +1,7 @@
 <settings xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://developer.garmin.com/downloads/connect-iq/resources.xsd">
+    <setting propertyKey="@Properties.share_steps" title="@Strings.ShareStepsTitle" prompt="@Strings.ShareStepsPrompt">
+        <settingConfig type="boolean"/>
+    </setting>
     <setting propertyKey="@Properties.api_key" title="@Strings.ApiKeyTitle" prompt="@Strings.ApiKeyPrompt">
         <settingConfig type="alphaNumeric"/>
     </setting>

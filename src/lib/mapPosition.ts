@@ -5,17 +5,21 @@ export interface Landmark {
   y: number;
 }
 
+// Total journey: Bag End → Crack of Doom ≈ 1,779 miles (Tolkien geography).
+// Step conversion: 2,000 steps/mile (standard pedometer approximation).
+// Intermediate distances from the Atlas of Middle-earth and Eowyn Challenge references.
+
 /** Landmarks along Frodo's route; x/y are percentages on map.jpg. */
 export const LANDMARKS: Landmark[] = [
-  { name: "Bag End", steps: 0, x: 14, y: 36 },
-  { name: "Bree", steps: 60_000, x: 21, y: 33 },
-  { name: "Rivendell", steps: 280_000, x: 29, y: 28 },
-  { name: "Moria", steps: 420_000, x: 36, y: 38 },
-  { name: "Lothlórien", steps: 560_000, x: 43, y: 43 },
-  { name: "Anduin", steps: 720_000, x: 50, y: 50 },
-  { name: "Emyn Muil", steps: 900_000, x: 58, y: 56 },
-  { name: "Mordor Gate", steps: 1_100_000, x: 68, y: 64 },
-  { name: "Mount Doom", steps: 1_300_000, x: 74, y: 69 },
+  { name: "Bag End",      steps:         0, x: 14, y: 36 }, //    0 mi
+  { name: "Bree",         steps:   260_000, x: 21, y: 33 }, //  130 mi
+  { name: "Rivendell",    steps:   916_000, x: 29, y: 28 }, //  458 mi
+  { name: "Moria",        steps: 1_250_000, x: 36, y: 38 }, //  625 mi
+  { name: "Lothlórien",   steps: 1_350_000, x: 43, y: 43 }, //  675 mi
+  { name: "Anduin",       steps: 1_620_000, x: 50, y: 50 }, //  810 mi
+  { name: "Emyn Muil",    steps: 1_720_000, x: 58, y: 56 }, //  860 mi
+  { name: "Mordor Gate",  steps: 2_300_000, x: 68, y: 64 }, // 1150 mi (via Dead Marshes + Cirith Ungol approach)
+  { name: "Mount Doom",   steps: 3_558_000, x: 74, y: 69 }, // 1779 mi
 ];
 
 export const TOTAL_JOURNEY_STEPS = LANDMARKS[LANDMARKS.length - 1].steps;
