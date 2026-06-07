@@ -336,6 +336,7 @@ input:focus {
   left: 0;
   transform-origin: 0 0;
   will-change: transform;
+  pointer-events: none;
 }
 
 .map-image {

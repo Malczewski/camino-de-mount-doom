@@ -21,6 +21,7 @@ export default function Map({ members, currentUserId }: MapProps) {
   const [transform, setTransform] = useState<Transform>({ x: 0, y: 0, scale: 1 });
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [dragging, setDragging] = useState(false);
+  const draggingRef = useRef(false);
   const dragStart = useRef({ x: 0, y: 0, tx: 0, ty: 0 });
   const pinchStart = useRef<{ distance: number; scale: number } | null>(null);
   const fitScaleRef = useRef(1);
@@ -54,18 +55,24 @@ export default function Map({ members, currentUserId }: MapProps) {
 
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType !== "touch") return;
+    e.preventDefault();
     viewportRef.current?.setPointerCapture(e.pointerId);
+    draggingRef.current = true;
     setDragging(true);
-    dragStart.current = {
-      x: e.clientX,
-      y: e.clientY,
-      tx: transform.x,
-      ty: transform.y,
-    };
+    setTransform((t) => {
+      dragStart.current = {
+        x: e.clientX,
+        y: e.clientY,
+        tx: t.x,
+        ty: t.y,
+      };
+      return t;
+    });
   };
 
   const onPointerMove = (e: React.PointerEvent) => {
-    if (!dragging) return;
+    if (!draggingRef.current) return;
+    e.preventDefault();
     setTransform((t) => ({
       ...t,
       x: dragStart.current.tx + (e.clientX - dragStart.current.x),
@@ -74,6 +81,7 @@ export default function Map({ members, currentUserId }: MapProps) {
   };
 
   const onPointerUp = (e: React.PointerEvent) => {
+    draggingRef.current = false;
     setDragging(false);
     viewportRef.current?.releasePointerCapture(e.pointerId);
   };
@@ -170,6 +178,7 @@ export default function Map({ members, currentUserId }: MapProps) {
           alt="Middle-earth map"
           className="map-image"
           draggable={false}
+          onDragStart={(e) => e.preventDefault()}
           onLoad={fitToViewport}
         />
         {imageSize.width > 0 && (
