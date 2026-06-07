@@ -2,7 +2,6 @@ using Toybox.Application;
 using Toybox.Communications;
 using Toybox.Graphics;
 using Toybox.Lang;
-using Toybox.System;
 using Toybox.WatchUi;
 
 // Global state shared with InputDelegate
@@ -42,7 +41,7 @@ class AppView extends WatchUi.View {
         data as Lang.Dictionary or Lang.String or Null
     ) as Void {
         gLoadingData = false;
-        System.println("onGroupDataResponse: code=" + code + " data=" + data);
+        Logger.log("onGroupDataResponse: code=" + code + " data=" + data);
         if (code == 200 && data instanceof Lang.Dictionary) {
             var groups = (data as Lang.Dictionary).get("groups");
             gGroupData = groups instanceof Lang.Array ? groups as Lang.Array : new [0];
@@ -59,7 +58,7 @@ class AppView extends WatchUi.View {
             } else if (data instanceof Lang.String) {
                 msg = data as Lang.String;
             }
-            System.println("onGroupDataResponse: error=" + msg);
+            Logger.log("onGroupDataResponse: error=" + msg);
             gDataError = msg;
         }
         WatchUi.requestUpdate();
@@ -141,7 +140,7 @@ class AppView extends WatchUi.View {
         // Member list
         var membersObj = group.get("members");
         var members = membersObj instanceof Lang.Array ? membersObj as Lang.Array : new [0];
-        var count = members.size() > 4 ? 4 : members.size();
+        var count = members.size() > 3 ? 3 : members.size();
         if (count == 0) {
             dc.setColor(0x888888, Graphics.COLOR_TRANSPARENT);
             dc.drawText(cx, (H * 0.55).toNumber(), Graphics.FONT_TINY, "No members",
@@ -149,9 +148,11 @@ class AppView extends WatchUi.View {
             return;
         }
 
-        var availH = (H * 0.70).toNumber();
-        var startY = (H * 0.22).toNumber();
-        var rowH = availH / count;
+        // Fixed row height — never divided by count so layout is identical for 1 or 4 users
+        var startY = (H * 0.20).toNumber();
+        var rowH = (H * 0.23).toNumber();
+        var nameOff = (H * 0.04).toNumber();   // name line: fixed px below row top
+        var barOff  = (H * 0.12).toNumber();   // bar line:  fixed px below row top
 
         for (var i = 0; i < count; i++) {
             var mObj = members[i];
@@ -172,7 +173,7 @@ class AppView extends WatchUi.View {
             var totalPct = progress * 100.0;
 
             // Line 1: name (left) · total% (right)
-            var line1Y = rowY + (rowH * 0.28).toNumber();
+            var line1Y = rowY + nameOff;
             dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
             dc.drawText(mg, line1Y, Graphics.FONT_TINY, name,
                 Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
@@ -182,7 +183,7 @@ class AppView extends WatchUi.View {
                 Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER);
 
             // Line 2: [progress bar] [+delta%]
-            var barTopY = rowY + (rowH * 0.60).toNumber();
+            var barTopY = rowY + barOff;
             var barH = 7;
             var filledW = (barW.toFloat() * progress).toNumber();
 
@@ -193,11 +194,11 @@ class AppView extends WatchUi.View {
                 dc.fillRectangle(mg, barTopY, filledW, barH);
             }
 
-            // Delta label: left-aligned right after the bar ends — no overlap possible
+            // Delta label: right-aligned at same anchor as total% above — guarantees alignment
             dc.setColor(0x00CC44, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(mg + barW + gap, barTopY + barH / 2, Graphics.FONT_TINY,
+            dc.drawText(W - mg, barTopY + barH / 2, Graphics.FONT_TINY,
                 "+" + weekPct.format("%.2f") + "%",
-                Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+                Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER);
         }
     }
 

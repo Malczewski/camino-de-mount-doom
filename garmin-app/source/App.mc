@@ -42,7 +42,7 @@ class App extends Application.AppBase {
         try {
             Background.registerForTemporalEvent(new Time.Duration(3600));
         } catch (ex) {
-            System.println("Failed to register background temporal event");
+            Logger.log("Failed to register background temporal event");
         }
     }
 }

@@ -1,6 +1,5 @@
 using Toybox.Communications;
 using Toybox.Lang;
-using Toybox.System;
 using Toybox.WatchUi;
 
 class AppInputDelegate extends WatchUi.InputDelegate {
@@ -11,7 +10,7 @@ class AppInputDelegate extends WatchUi.InputDelegate {
 
     function onKey(keyEvent as WatchUi.KeyEvent) as Lang.Boolean {
         var key = keyEvent.getKey();
-        System.println("onKey: " + key);
+        Logger.log("onKey: " + key);
 
         if (key == WatchUi.KEY_DOWN) {
             shiftPage(1);
@@ -34,7 +33,7 @@ class AppInputDelegate extends WatchUi.InputDelegate {
 
     function onSwipe(swipeEvent as WatchUi.SwipeEvent) as Lang.Boolean {
         var dir = swipeEvent.getDirection();
-        System.println("onSwipe: " + dir);
+        Logger.log("onSwipe: " + dir);
         if (dir == WatchUi.SWIPE_UP) {
             shiftPage(1);
             return true;
@@ -50,7 +49,7 @@ class AppInputDelegate extends WatchUi.InputDelegate {
         var groups = gGroupData;
         var tp = (groups != null ? groups.size() : 0) + 1;
         gCurrentPage = ((gCurrentPage + delta) + tp) % tp;
-        System.println("page -> " + gCurrentPage + "/" + tp);
+        Logger.log("page -> " + gCurrentPage + "/" + tp);
         WatchUi.requestUpdate();
     }
 }

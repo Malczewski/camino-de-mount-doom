@@ -69,6 +69,7 @@ The Garmin watch cannot handle OAuth/JWT refresh flows. Instead, each user has a
 - `App.mc` — registers a 3600s background temporal event; if no `api_key` is stored, opens the settings URL in the app
 - `BackgroundService.mc` — handles the temporal event, calls `StepSync.sync()`
 - `StepSync.mc` — reads `ActivityMonitor.steps` (resets daily at midnight), POSTs `{steps, date, api_key}` to the edge function
+- `Logger.mc` — shared `(:background)` module; `Logger.log(msg)` wraps `System.println` behind a `DEBUG` flag (default `false`). Use this for all debug logging; never call `System.println` directly.
 
 ### Static HTML Files
 

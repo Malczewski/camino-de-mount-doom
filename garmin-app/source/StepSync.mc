@@ -2,7 +2,6 @@ using Toybox.ActivityMonitor;
 using Toybox.Application;
 using Toybox.Communications;
 using Toybox.Lang;
-using Toybox.System;
 using Toybox.Time;
 using Toybox.Time.Gregorian;
 
@@ -11,32 +10,24 @@ module StepSync {
 
     const EDGE_FUNCTION_URL = "https://wpkwqhbrvphjppfquqby.supabase.co/functions/v1/step-sync";
     const LAST_SYNC_DATE_KEY = "last_sync_date";
-    const DEBUG = false;
-
-    function log(message as Lang.String) as Void {
-        if (DEBUG) {
-            System.println(message);
-        }
-    }
-
     function sync(callback as Lang.Method) as Void {
-        log("sync() called");
+        Logger.log("sync() called");
 
         var share = Application.Properties.getValue("share_steps");
         if (!(share instanceof Lang.Boolean) || !(share as Lang.Boolean)) {
-            log("sync() aborted: sharing disabled");
+            Logger.log("sync() aborted: sharing disabled");
             return;
         }
 
         var apiKey = Application.Properties.getValue("api_key");
         if (apiKey == null || !(apiKey instanceof Lang.String) || (apiKey as Lang.String).length() == 0) {
-            log("sync() aborted: no api key");
+            Logger.log("sync() aborted: no api key");
             return;
         }
 
         var dates = buildDatePayloads();
         if (dates.size() == 0) {
-            log("sync() aborted: no step data");
+            Logger.log("sync() aborted: no step data");
             return;
         }
 
@@ -53,11 +44,11 @@ module StepSync {
             :responseType => Communications.HTTP_RESPONSE_CONTENT_TYPE_JSON
         };
 
-        log("makeWebRequest with " + dates.size() + " date(s)");
+        Logger.log("makeWebRequest with " + dates.size() + " date(s)");
         try {
             Communications.makeWebRequest(EDGE_FUNCTION_URL, payload, options, callback);
         } catch (ex instanceof Lang.Exception) {
-            log("Step sync request failed: " + ex.getErrorMessage());
+            Logger.log("Step sync request failed: " + ex.getErrorMessage());
         }
     }
 
@@ -90,7 +81,7 @@ module StepSync {
                     }
                 }
             } catch (ex instanceof Lang.Exception) {
-                log("History unavailable: " + ex.getErrorMessage());
+                Logger.log("History unavailable: " + ex.getErrorMessage());
             }
         }
 
@@ -100,7 +91,7 @@ module StepSync {
                 results.add({"date" => today, "steps" => info.steps});
             }
         } catch (ex instanceof Lang.Exception) {
-            log("getInfo() failed: " + ex.getErrorMessage());
+            Logger.log("getInfo() failed: " + ex.getErrorMessage());
         }
 
         return results;

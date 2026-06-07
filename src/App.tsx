@@ -161,7 +161,7 @@ export default function App() {
       .eq("user_id", uid);
 
     const groups: Group[] = (data ?? [])
-      .map((row) => row.groups as Group | null)
+      .map((row) => row.groups as unknown as Group | null)
       .filter((g): g is Group => g !== null);
 
     setUserGroups(groups);

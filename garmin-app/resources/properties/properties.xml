@@ -1,3 +1,4 @@
 <properties>
+    <property id="share_steps" type="boolean">false</property>
     <property id="api_key" type="string"></property>
 </properties>

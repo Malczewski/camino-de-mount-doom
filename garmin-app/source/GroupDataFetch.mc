@@ -1,6 +1,5 @@
 using Toybox.Communications;
 using Toybox.Lang;
-using Toybox.System;
 
 // Foreground-only module: fetches group progress data from the server.
 // Not annotated (:background) so it stays out of the background service build.
@@ -25,7 +24,7 @@ module GroupDataFetch {
                 callback
             );
         } catch (ex instanceof Lang.Exception) {
-            System.println("GroupDataFetch.fetch failed: " + ex.getErrorMessage());
+            Logger.log("GroupDataFetch.fetch failed: " + ex.getErrorMessage());
         }
     }
 }
