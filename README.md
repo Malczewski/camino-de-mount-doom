@@ -2,7 +2,7 @@
 
 **Demo:** [https://camino-de-mount-doom.netlify.app/](https://camino-de-mount-doom.netlify.app/)
 
-Track all-day steps from a Garmin watch, map cumulative progress on a Middle-earth route, and see your fellowship move in real time on a shared map.
+Track all-day steps from a Garmin watch, map cumulative progress on a Middle-earth route, and see your fellowship move in real time on a shared map. Users can belong to multiple groups; each group tracks progress independently from its creation date.
 
 | Component | Technology |
 |-----------|------------|
@@ -81,6 +81,10 @@ Migrations run in order from `supabase/migrations/`. They are idempotent — saf
 supabase migration repair --status applied 20240606000001
 supabase migration repair --status applied 20240606000002
 supabase migration repair --status applied 20240606000003
+supabase migration repair --status applied 20240606000004
+supabase migration repair --status applied 20240606000005
+supabase migration repair --status applied 20260607000001
+supabase migration repair --status applied 20260607000002
 ```
 
 Do **not** use both `init.sql` and `db push` on a fresh project — pick one path.
@@ -89,13 +93,14 @@ Do **not** use both `init.sql` and `db push` on a fresh project — pick one pat
 
 | Table | Purpose |
 |-------|---------|
-| `profiles` | User profile, `total_steps`, `group_id`, `api_key` for watch auth |
-| `groups` | Fellowship name + 8-char `invite_code` |
+| `profiles` | User profile, `display_name`, `total_steps` (global), `api_key` for watch auth |
+| `groups` | Fellowship name, 8-char `invite_code`, `created_at` |
+| `group_members` | Many-to-many: users ↔ groups, with `joined_at` |
 | `step_logs` | Daily step counts (`user_id`, `date`, `steps`) |
 
-Each user belongs to **at most one group** (`profiles.group_id`). A trigger creates a `profiles` row (with random `api_key`) on signup.
+A user can belong to **multiple groups**. Within each group, progress is counted from `groups.created_at` (via the `get_group_members` RPC), so everyone starts at 0 regardless of prior global steps. A trigger creates a `profiles` row (with random `api_key`) on signup.
 
-Realtime is enabled on `profiles` and `step_logs` for live map updates.
+Realtime is enabled on `profiles`, `group_members`, and `step_logs` for live map updates.
 
 ## 2. Edge function — step sync
 
@@ -147,10 +152,10 @@ Expected response: `{"ok":true}`
 
 ```bash
 cd garmin-app
-monkeyc -o frodo-steps.prg -f monkey.jungle -y developer_key.der
+monkeyc -o camino-de-mount-doom.prg -f monkey.jungle -y developer_key.der
 ```
 
-- Sideload `frodo-steps.prg` via Garmin Connect or Garmin Express for private use.
+- Sideload `camino-de-mount-doom.prg` via Garmin Connect or Garmin Express for private use.
 - Open **My Device → Camino de Mt.Doom → Settings** in Garmin Connect and sign in.
 - Background sync runs on a temporal event (default: hourly; minimum on most devices: 5 minutes for testing).
 
@@ -172,9 +177,9 @@ npm run preview    # preview production build
 
 ### Screens
 
-- **Map** — pannable/zoomable Middle-earth map with live member markers (~3.56M steps = Bag End → Mount Doom)
-- **Group** — create or join via invite code, member list with step totals
-- **Profile** — your stats, delete account
+- **Map** — pannable/zoomable Middle-earth map with live member markers (~3.56M steps = Bag End → Mount Doom). Dropdown to switch between groups when in multiple.
+- **Group** — list of all your fellowships, each showing invite code, members with group-relative progress, and a leave button. Create new groups or join via invite code at any time.
+- **Profile** — your global stats, editable display name, log out, delete account.
 
 ### Environment variables
 
