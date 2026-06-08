@@ -658,7 +658,7 @@ export default function Editor() {
               className="editor-context-item"
               onClick={() => {
                 const { insertAfter, x, y } = contextMenu;
-                const newPt: RoutePoint = { x, y };
+                const newPt: RoutePoint = { x, y, smooth: true };
                 setPoints((prev) => {
                   const next = [...prev];
                   next.splice(insertAfter + 1, 0, newPt);

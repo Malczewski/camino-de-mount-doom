@@ -360,6 +360,19 @@ export default function Map({
           screen pixels via repositionMarkers() and stays a fixed visual size. */}
       {imageSize.width > 0 && (
         <div ref={markersRef} className="map-markers">
+          {routeConfig.points
+            .filter((p) => p.name)
+            .map((p, idx) => (
+              <div
+                key={`landmark-${idx}`}
+                className="landmark-marker"
+                data-ix={(p.x / 100) * imageSize.width}
+                data-iy={(p.y / 100) * imageSize.height}
+              >
+                <span className="landmark-dot" />
+                <span className="landmark-label">{p.name}</span>
+              </div>
+            ))}
           {members.map((member) => {
             const pos = getRoutePosition(member.group_steps, routeConfig);
             return (

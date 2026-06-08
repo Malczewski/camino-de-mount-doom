@@ -58,7 +58,7 @@ Web app
 
 ### Route Positioning (`src/lib/mapPosition.ts`)
 
-The route is defined as `LANDMARKS` (9 checkpoints, ~3.56M steps total) and `RouteConfig` (an array of `{x, y}` percentage positions on the map image). `getPositionOnRoute()` interpolates between route points proportionally to step count. The Editor component lets users draw custom routes with optional Catmull-Rom spline smoothing; custom routes are saved to `localStorage`.
+The route is defined as `POINTS` — a detailed array of `{x, y, steps?, name?, smooth?}` percentage positions on the map image (~3M steps total, Bag End → Mount Doom). `LANDMARKS` is derived from `POINTS` by filtering entries that have both `steps` and `name`; it is the single source of truth for named checkpoints and legacy helpers. `RouteConfig` wraps a points array and is what the map and editor consume. The Editor lets users draw custom routes with optional Catmull-Rom spline smoothing (new points default to `smooth: true`); custom routes are saved to `localStorage` and override the default. Named checkpoints in the active `RouteConfig` are displayed on the map as landmark pins.
 
 ### Watch Auth
 

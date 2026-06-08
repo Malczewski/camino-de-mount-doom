@@ -400,6 +400,37 @@ input:focus {
   text-overflow: ellipsis;
 }
 
+.landmark-marker {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.landmark-dot {
+  display: block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 215, 0, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  margin: 0 auto;
+}
+
+.landmark-label {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.5625rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(0, 0, 0, 0.45);
+  padding: 1px 4px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
 .empty-state {
   color: #6e6e73;
   font-size: 0.875rem;

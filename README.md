@@ -177,7 +177,7 @@ npm run preview    # preview production build
 
 ### Screens
 
-- **Map** — pannable/zoomable Middle-earth map with live member markers (~3.56M steps = Bag End → Mount Doom). Dropdown to switch between groups when in multiple.
+- **Map** — pannable/zoomable Middle-earth map with live member markers and named landmark pins (~3M steps = Bag End → Mount Doom). Dropdown to switch between groups when in multiple.
 - **Group** — list of all your fellowships, each showing invite code, members with group-relative progress, and a leave button. Create new groups or join via invite code at any time.
 - **Profile** — your global stats, editable display name, log out, delete account.
 
