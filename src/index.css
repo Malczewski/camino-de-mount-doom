@@ -403,7 +403,8 @@ input:focus {
 .landmark-marker {
   position: absolute;
   transform: translate(-50%, -50%);
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: default;
 }
 
 .landmark-dot {
@@ -429,6 +430,44 @@ input:focus {
   padding: 1px 4px;
   border-radius: 3px;
   white-space: nowrap;
+}
+
+.landmark-tooltip {
+  position: fixed;
+  z-index: 1000;
+  transform: translateX(-50%) translateY(calc(-100% - 14px));
+  background: rgba(12, 8, 4, 0.92);
+  color: #f0e8d8;
+  border-radius: 8px;
+  padding: 8px 12px;
+  max-width: 220px;
+  pointer-events: none;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.landmark-tooltip::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: rgba(12, 8, 4, 0.92);
+}
+
+.landmark-tooltip-name {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: rgba(255, 215, 0, 0.95);
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+
+.landmark-tooltip-desc {
+  font-size: 0.6875rem;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.82);
 }
 
 .empty-state {

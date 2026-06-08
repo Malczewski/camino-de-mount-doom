@@ -8,6 +8,17 @@ import {
 } from "../lib/mapPosition";
 import type { Group, GroupMember } from "../lib/supabase";
 
+function landmarkKey(name: string): string {
+  return name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .split(/\s+/)
+    .map((word, i) =>
+      i === 0 ? word.toLowerCase() : word[0].toUpperCase() + word.slice(1).toLowerCase(),
+    )
+    .join("");
+}
+
 interface MapProps {
   members: GroupMember[];
   currentUserId: string;
@@ -49,6 +60,11 @@ export default function Map({
 
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const [routeConfig, setRouteConfig] = useState<RouteConfig>(loadRouteConfig);
+  const [landmarkTooltip, setLandmarkTooltip] = useState<{
+    name: string;
+    x: number;
+    y: number;
+  } | null>(null);
 
   const transformRef = useRef<Transform>({ x: 0, y: 0, scale: 1 });
   const draggingRef = useRef(false);
@@ -235,6 +251,7 @@ export default function Map({
   const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0 && e.pointerType !== "touch") return;
     e.preventDefault();
+    setLandmarkTooltip(null);
     viewportRef.current?.setPointerCapture(e.pointerId);
     activePointers.current.add(e.pointerId);
 
@@ -368,6 +385,16 @@ export default function Map({
                 className="landmark-marker"
                 data-ix={(p.x / 100) * imageSize.width}
                 data-iy={(p.y / 100) * imageSize.height}
+                onPointerDown={(e) => e.stopPropagation()}
+                onMouseEnter={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  setLandmarkTooltip({
+                    name: p.name!,
+                    x: rect.left + rect.width / 2,
+                    y: rect.top,
+                  });
+                }}
+                onMouseLeave={() => setLandmarkTooltip(null)}
               >
                 <span className="landmark-dot" />
                 <span className="landmark-label">{p.name}</span>
@@ -425,6 +452,18 @@ export default function Map({
           {userGroups.length === 0
             ? t("map.joinGroupPrompt")
             : t("map.noTravelers")}
+        </div>
+      )}
+
+      {landmarkTooltip && (
+        <div
+          className="landmark-tooltip"
+          style={{ left: landmarkTooltip.x, top: landmarkTooltip.y }}
+        >
+          <div className="landmark-tooltip-name">{landmarkTooltip.name}</div>
+          <div className="landmark-tooltip-desc">
+            {t(`landmarks.${landmarkKey(landmarkTooltip.name)}`)}
+          </div>
         </div>
       )}
     </div>

@@ -100,5 +100,26 @@
     "traveler": "Traveler",
     "joinGroupPrompt": "Join a group to see fellow travelers on the map",
     "noTravelers": "No travelers in this fellowship yet"
+  },
+  "landmarks": {
+    "bagEnd": "The cozy hobbit-hole of Bilbo Baggins where Frodo inherited the One Ring and the great quest began.",
+    "buckleburyFerry": "The old Brandywine River crossing where the hobbits narrowly escaped the pursuing Black Riders.",
+    "bree": "A bustling crossroads town where Frodo first met the mysterious Strider — Aragorn, heir to the throne of Gondor — at the Prancing Pony inn.",
+    "weathertop": "The ancient ruined watchtower where the Nazgûl ambushed the Fellowship and Frodo was stabbed with a cursed Morgul-blade.",
+    "trollshaws": "Wild rocky forests where Bilbo once tricked three stone trolls — and the hobbits found their buried treasure cave.",
+    "rivendell": "The Last Homely House, elven refuge of Lord Elrond, where the Council of Elrond decided the fate of the One Ring.",
+    "caradhras": "The cruel mountain of the Misty range that buried the Fellowship in snow and ice, forcing them to seek another way.",
+    "moria": "The vast underground realm of Khazad-dûm where the Fellowship faced the Balrog — and Gandalf fell into the abyss.",
+    "lothlorien": "The golden forest realm of Lady Galadriel, where the Fellowship rested, grieved Gandalf, and received elvish gifts for the road ahead.",
+    "anduin": "The Great River carrying the Fellowship's boats southward past ancient ruins toward the falls of Rauros.",
+    "argonath": "The Pillars of the Kings — two colossal statues of Isildur and Anárion carved into cliffs, marking the ancient northern border of Gondor.",
+    "amonHen": "The Hill of Sight where the Fellowship broke apart — Frodo saw the Eye of Sauron and chose to continue alone with Sam.",
+    "emynMuil": "A maze of rocky hills where Frodo and Sam first encountered Gollum, who became their reluctant guide to Mordor.",
+    "deadMarshes": "A vast haunted swamp where the ghostly faces of long-dead warriors shimmer beneath the murky water, luring travelers to their doom.",
+    "blackGate": "The Morannon — the great iron gate and main fortified entrance to Mordor, guarded day and night by Sauron's armies.",
+    "ithilien": "A fair forested land once belonging to Gondor where Frodo and Sam were captured by Faramir's Rangers.",
+    "minasMorgul": "The Dead City — once the fair Minas Ithil, now a fortress of the Nazgûl glowing with an eerie green light.",
+    "mordor": "Sauron's dark volcanic realm surrounded by the Ash Mountains — the most perilous and desolate stretch of the entire quest.",
+    "mountDoom": "Orodruin, the Mountain of Fire — the one place in all of Middle-earth where the One Ring was forged and where it could be unmade."
   }
 }
