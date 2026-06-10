@@ -456,7 +456,10 @@ export default function App() {
   return (
     <div className="app-shell">
       <nav className="top-nav">
-        <span className="app-title">{t("nav.appTitle")}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <img src="/icon.png" alt="" width={28} height={28} style={{ borderRadius: 6, flexShrink: 0 }} />
+          <span className="app-title">{t("nav.appTitle")}</span>
+        </div>
         <div className="nav-tabs">
           {(["map", "group", "profile"] as const).map((tabId) => (
             <button

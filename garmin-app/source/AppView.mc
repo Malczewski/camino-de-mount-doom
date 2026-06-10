@@ -11,7 +11,6 @@ var gCurrentPage as Lang.Number = 0;
 var gDataError as Lang.String or Null = null;
 
 const WEB_APP_URL = "https://camino-de-mount-doom.netlify.app";
-// Bag End → Crack of Doom ≈ 1,779 miles × 2,000 steps/mile
 const TOTAL_STEPS_F = 3000000.0;
 
 class AppView extends WatchUi.View {

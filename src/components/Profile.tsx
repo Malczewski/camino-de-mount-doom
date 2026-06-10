@@ -285,6 +285,15 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
         {apiKey && (
           <div className="section">
             <h3 className="section-title">{t("profile.garminSetup")}</h3>
+            <a
+              href="https://apps.garmin.com/apps/7298dd51-99a7-434c-b19e-9a50334c5976"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-secondary btn-sm"
+              style={{ display: "inline-flex", marginBottom: "0.75rem", textDecoration: "none" }}
+            >
+              {t("profile.garminDownload")}
+            </a>
             <p style={{ fontSize: "0.875rem", color: "#6e6e73", marginBottom: "0.75rem" }}>
               {t("profile.garminInstructions")}
             </p>

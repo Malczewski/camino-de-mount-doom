@@ -79,6 +79,7 @@
     "progressToMountDoom": "Progress to Mount Doom",
     "nearestLandmark": "Nearest landmark",
     "garminSetup": "Garmin watch setup",
+    "garminDownload": "Download on Garmin Connect IQ",
     "garminInstructions": "In the Garmin Connect IQ app, open this app's settings and paste your API key into the \"API Key\" field.",
     "copied": "Copied!",
     "copy": "Copy",
