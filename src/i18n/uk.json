@@ -64,7 +64,10 @@
     "couldNotCopy": "Не вдалося скопіювати в буфер обміну.",
     "groupCreated": "\"{{name}}\" створено!",
     "groupJoined": "Приєдналися до \"{{name}}\"!",
-    "groupLeft": "Ви покинули групу."
+    "groupLeft": "Ви покинули групу.",
+    "lastWeek": "на мин. тижні",
+    "nextCheckpoint": "Далі: {{name}} за {{steps}} кроків",
+    "journeyComplete": "Подорож завершена! 🌋"
   },
   "profile": {
     "yourJourney": "Ваша подорож",

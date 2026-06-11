@@ -254,22 +254,50 @@ input:focus {
 
 .member-item {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 4px;
   padding: 12px;
   background: #f5f5f7;
   border-radius: 8px;
+}
+
+.member-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .member-name {
   font-weight: 600;
 }
 
-.member-meta {
+.member-progress {
+  font-weight: 600;
+  font-size: 0.9375rem;
+  white-space: nowrap;
+}
+
+.member-sub {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.member-week-delta {
+  font-size: 0.8125rem;
+  color: #34a853;
+}
+
+.member-next-checkpoint {
   font-size: 0.8125rem;
   color: #6e6e73;
-  text-align: right;
+}
+
+.member-journey-complete {
+  color: #e3852b;
 }
 
 .invite-row {

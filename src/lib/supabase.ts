@@ -37,4 +37,5 @@ export interface GroupMember {
   id: string;
   display_name: string;
   group_steps: number;
+  last_week_steps: number;
 }

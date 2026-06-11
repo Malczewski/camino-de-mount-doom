@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { getProgressPercent } from "../lib/mapPosition";
+import { getProgressPercent, LANDMARKS, TOTAL_JOURNEY_STEPS } from "../lib/mapPosition";
 import { supabase, type Group, type GroupMember } from "../lib/supabase";
 
 interface GroupProps {
@@ -281,19 +281,40 @@ export default function GroupScreen({
                 <p className="empty-state">{t("group.noMembers")}</p>
               ) : (
                 <ul className="member-list">
-                  {members.map((member) => (
-                    <li key={member.id} className="member-item">
-                      <span className="member-name">
-                        {member.display_name}
-                        {member.id === userId ? t("group.you") : ""}
-                      </span>
-                      <span className="member-meta">
-                        {member.group_steps.toLocaleString(i18n.language)} {t("group.steps")}
-                        <br />
-                        {getProgressPercent(member.group_steps)}%
-                      </span>
-                    </li>
-                  ))}
+                  {members.map((member) => {
+                    const weekPct = (member.last_week_steps / TOTAL_JOURNEY_STEPS * 100).toFixed(2);
+                    const nextStop = LANDMARKS.find(l => l.steps > member.group_steps);
+                    return (
+                      <li key={member.id} className="member-item">
+                        <div className="member-main">
+                          <span className="member-name">
+                            {member.display_name}
+                            {member.id === userId ? t("group.you") : ""}
+                          </span>
+                          <span className="member-progress">
+                            {getProgressPercent(member.group_steps)}%
+                          </span>
+                        </div>
+                        <div className="member-sub">
+                          <span className="member-week-delta">
+                            +{weekPct}% {t("group.lastWeek")}
+                          </span>
+                          {nextStop ? (
+                            <span className="member-next-checkpoint">
+                              {t("group.nextCheckpoint", {
+                                name: nextStop.name,
+                                steps: (nextStop.steps - member.group_steps).toLocaleString(i18n.language),
+                              })}
+                            </span>
+                          ) : (
+                            <span className="member-next-checkpoint member-journey-complete">
+                              {t("group.journeyComplete")}
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               )}
             </div>

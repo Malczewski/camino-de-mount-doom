@@ -64,7 +64,10 @@
     "couldNotCopy": "Could not copy to clipboard.",
     "groupCreated": "\"{{name}}\" created!",
     "groupJoined": "Joined \"{{name}}\"!",
-    "groupLeft": "You left the group."
+    "groupLeft": "You left the group.",
+    "lastWeek": "last week",
+    "nextCheckpoint": "Next: {{name}} in {{steps}} steps",
+    "journeyComplete": "Journey complete! 🌋"
   },
   "profile": {
     "yourJourney": "Your journey",
