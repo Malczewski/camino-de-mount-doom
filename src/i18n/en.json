@@ -97,6 +97,24 @@
     "nameUpdated": "Name updated!",
     "passwordChanged": "Password changed!"
   },
+  "oura": {
+    "sectionTitle": "Oura Ring",
+    "connectInstructions": "Connect your Oura Ring to automatically sync your daily steps.",
+    "connect": "Connect Oura Ring",
+    "connecting": "Connecting…",
+    "connected": "Oura Ring connected!",
+    "connectionFailed": "Could not connect Oura Ring. Please try again.",
+    "connectedSince": "Connected since {{date}}",
+    "lastSynced": "Last synced: {{date}}",
+    "syncNow": "Sync now",
+    "syncing": "Syncing…",
+    "syncComplete": "Sync complete!",
+    "syncFailed": "Sync failed. Please try again.",
+    "disconnect": "Disconnect",
+    "disconnecting": "Disconnecting…",
+    "disconnected": "Oura Ring disconnected.",
+    "disconnectConfirm": "Disconnect your Oura Ring? Your existing step data will be kept."
+  },
   "map": {
     "traveler": "Traveler",
     "joinGroupPrompt": "Join a group to see fellow travelers on the map",

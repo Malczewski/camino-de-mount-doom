@@ -97,6 +97,24 @@
     "nameUpdated": "Ім'я оновлено!",
     "passwordChanged": "Пароль змінено!"
   },
+  "oura": {
+    "sectionTitle": "Oura Ring",
+    "connectInstructions": "Підключіть Oura Ring для автоматичної синхронізації кроків.",
+    "connect": "Підключити Oura Ring",
+    "connecting": "Підключення…",
+    "connected": "Oura Ring підключено!",
+    "connectionFailed": "Не вдалося підключити Oura Ring. Спробуйте ще раз.",
+    "connectedSince": "Підключено з {{date}}",
+    "lastSynced": "Остання синхронізація: {{date}}",
+    "syncNow": "Синхронізувати",
+    "syncing": "Синхронізація…",
+    "syncComplete": "Синхронізацію завершено!",
+    "syncFailed": "Помилка синхронізації. Спробуйте ще раз.",
+    "disconnect": "Відключити",
+    "disconnecting": "Відключення…",
+    "disconnected": "Oura Ring відключено.",
+    "disconnectConfirm": "Відключити Oura Ring? Ваші дані про кроки залишаться."
+  },
   "map": {
     "traveler": "Мандрівник",
     "joinGroupPrompt": "Приєднайтесь до групи, щоб бачити інших мандрівників на карті",

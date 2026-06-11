@@ -67,9 +67,10 @@
     <h2>What we collect</h2>
     <ul>
       <li><strong>Account data:</strong> email address and display name when you sign up.</li>
-      <li><strong>Step data:</strong> daily step counts synced from your Garmin watch via Connect IQ.</li>
+      <li><strong>Step data:</strong> daily step counts synced from your Garmin watch via Connect IQ and/or your Oura Ring via the Oura Cloud API.</li>
       <li><strong>Group data:</strong> group membership and invite codes if you join a fellowship.</li>
       <li><strong>Technical data:</strong> a per-user API key used by the watch app to authenticate step sync requests.</li>
+      <li><strong>Oura OAuth tokens:</strong> if you connect an Oura Ring, we store your Oura access and refresh tokens in order to sync daily step counts on your behalf. No other Oura health data (sleep, readiness, heart rate, etc.) is accessed or stored.</li>
     </ul>
 
     <h2>Why we collect it</h2>
@@ -82,7 +83,8 @@
     <h2>Where data is stored</h2>
     <p>
       Data is stored in Supabase (PostgreSQL) in the EU region. Step sync requests are processed
-      by a Supabase Edge Function. Garmin relays watch data through the Garmin Connect app on your phone.
+      by Supabase Edge Functions. Garmin relays watch data through the Garmin Connect app on your phone.
+      Oura step data is fetched directly from the Oura Cloud API using OAuth tokens you have authorised.
     </p>
 
     <h2>Retention</h2>
@@ -107,6 +109,9 @@
     <p>
       For privacy requests or questions, email
       <a href="mailto:yurimalcz+camino@gmail.com">yurimalcz+camino@gmail.com</a>.
+    </p>
+    <p style="margin-top: 24px; font-size: 0.875rem; color: #6e6e73;">
+      <a href="/terms-of-service.html">Terms of Service</a>
     </p>
   </main>
 </body>

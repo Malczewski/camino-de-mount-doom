@@ -9,6 +9,24 @@ import { supabase, type Group, type GroupMember } from "./lib/supabase";
 type Tab = "map" | "group" | "profile";
 type AuthMode = "login" | "signup" | "forgot";
 
+// Detect Oura OAuth callback before React state initialises.
+// Oura redirects back with ?code=XXX&state=oura in the query string.
+function extractOuraCallbackCode(): string | null {
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get("code");
+  const state = params.get("state");
+  if (code && state === "oura") {
+    // Clean the URL so the code can't be replayed on refresh.
+    window.history.replaceState(
+      {},
+      "",
+      window.location.pathname + window.location.hash,
+    );
+    return code;
+  }
+  return null;
+}
+
 function LangToggle() {
   const { i18n } = useTranslation();
   return (
@@ -300,7 +318,8 @@ export default function App() {
   const [isRecovery, setIsRecovery] = useState(
     () => window.location.hash.includes("type=recovery"),
   );
-  const [tab, setTab] = useState<Tab>("map");
+  const [pendingOuraCode] = useState<string | null>(extractOuraCallbackCode);
+  const [tab, setTab] = useState<Tab>(() => (pendingOuraCode ? "profile" : "map"));
   const [userGroups, setUserGroups] = useState<Group[]>([]);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
   const [mapMembers, setMapMembers] = useState<GroupMember[]>([]);
@@ -507,6 +526,7 @@ export default function App() {
         {tab === "profile" && (
           <Profile
             userId={userId}
+            pendingOuraCode={pendingOuraCode}
             onAccountDeleted={() => {
               setSession(null);
               setUserGroups([]);
