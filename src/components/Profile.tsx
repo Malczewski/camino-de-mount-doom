@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   getNearestLandmark,
@@ -6,13 +6,23 @@ import {
 } from "../lib/mapPosition";
 import { supabase } from "../lib/supabase";
 
+const OURA_CLIENT_ID = import.meta.env.VITE_OURA_CLIENT_ID as string | undefined;
+const OURA_REDIRECT_URI = import.meta.env.VITE_OURA_REDIRECT_URI as string | undefined;
+const OURA_ENABLED = !!(OURA_CLIENT_ID && OURA_REDIRECT_URI);
+
 interface ProfileProps {
   userId: string;
+  pendingOuraCode?: string | null;
   onAccountDeleted: () => void;
   onLogout: () => void;
 }
 
-export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileProps) {
+export default function Profile({
+  userId,
+  pendingOuraCode,
+  onAccountDeleted,
+  onLogout,
+}: ProfileProps) {
   const { t, i18n } = useTranslation();
   const [totalSteps, setTotalSteps] = useState(0);
   const [displayName, setDisplayName] = useState("");
@@ -32,11 +42,22 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
 
+  // Guards against React Strict Mode's double-effect invocation consuming the
+  // one-time OAuth code twice (second call would fail with an invalid_grant error).
+  const ouraCallbackFiredRef = useRef(false);
+
+  // Oura state
+  const [ouraConnectedAt, setOuraConnectedAt] = useState<string | null>(null);
+  const [ouraLastSyncDate, setOuraLastSyncDate] = useState<string | null>(null);
+  const [ouraConnecting, setOuraConnecting] = useState(false);
+  const [ouraSyncing, setOuraSyncing] = useState(false);
+  const [ouraDisconnecting, setOuraDisconnecting] = useState(false);
+
   useEffect(() => {
     const loadProfile = async () => {
       const { data, error } = await supabase
         .from("profiles")
-        .select("display_name, total_steps, api_key")
+        .select("display_name, total_steps, api_key, oura_connected_at, oura_last_sync_date")
         .eq("id", userId)
         .single();
 
@@ -46,6 +67,12 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
         setDisplayName(data.display_name ?? "");
         setTotalSteps(data.total_steps ?? 0);
         setApiKey(data.api_key ?? null);
+        setOuraConnectedAt(
+          (data as unknown as { oura_connected_at?: string | null }).oura_connected_at ?? null,
+        );
+        setOuraLastSyncDate(
+          (data as unknown as { oura_last_sync_date?: string | null }).oura_last_sync_date ?? null,
+        );
       }
       setLoading(false);
     };
@@ -66,12 +93,20 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
           const row = payload.new as {
             total_steps?: number;
             display_name?: string | null;
+            oura_connected_at?: string | null;
+            oura_last_sync_date?: string | null;
           };
           if (typeof row.total_steps === "number") {
             setTotalSteps(row.total_steps);
           }
           if (row.display_name !== undefined) {
             setDisplayName(row.display_name ?? "");
+          }
+          if (row.oura_connected_at !== undefined) {
+            setOuraConnectedAt(row.oura_connected_at ?? null);
+          }
+          if (row.oura_last_sync_date !== undefined) {
+            setOuraLastSyncDate(row.oura_last_sync_date ?? null);
           }
         },
       )
@@ -101,6 +136,47 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
       void supabase.removeChannel(channel);
     };
   }, [userId]);
+
+  // Process Oura OAuth callback code passed from App after redirect.
+  useEffect(() => {
+    if (!pendingOuraCode || !OURA_REDIRECT_URI) return;
+
+    if (ouraCallbackFiredRef.current) return;
+    ouraCallbackFiredRef.current = true;
+
+    const handleCallback = async () => {
+      setOuraConnecting(true);
+      setMessage(null);
+
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+
+      if (!accessToken) {
+        setMessage({ text: t("oura.connectionFailed"), type: "error" });
+        setOuraConnecting(false);
+        return;
+      }
+
+      const { data, error } = await supabase.functions.invoke("oura-callback", {
+        body: { code: pendingOuraCode, redirect_uri: OURA_REDIRECT_URI },
+      });
+
+      setOuraConnecting(false);
+
+      if (error || !data?.ok) {
+        const msg = (data as { error?: string } | null)?.error ?? t("oura.connectionFailed");
+        setMessage({ text: msg, type: "error" });
+        return;
+      }
+
+      setOuraConnectedAt((data as { connected_at?: string }).connected_at ?? new Date().toISOString());
+      setMessage({ text: t("oura.connected"), type: "success" });
+    };
+
+    void handleCallback();
+    // Only run once per mount with a code — no deps needed beyond pendingOuraCode.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const startEditingName = () => {
     setNewName(displayName);
@@ -201,6 +277,69 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
     await navigator.clipboard.writeText(apiKey);
     setApiKeyCopied(true);
     setTimeout(() => setApiKeyCopied(false), 2000);
+  };
+
+  const connectOura = () => {
+    if (!OURA_CLIENT_ID || !OURA_REDIRECT_URI) return;
+    const params = new URLSearchParams({
+      response_type: "code",
+      client_id: OURA_CLIENT_ID,
+      redirect_uri: OURA_REDIRECT_URI,
+      scope: "daily",
+      state: "oura",
+    });
+    window.location.href = `https://cloud.ouraring.com/oauth/authorize?${params.toString()}`;
+  };
+
+  const syncOura = async () => {
+    setOuraSyncing(true);
+    setMessage(null);
+
+    const { data, error } = await supabase.functions.invoke("oura-sync", {
+      body: {},
+    });
+
+    setOuraSyncing(false);
+
+    if (error || !data?.ok) {
+      const msg = (data as { error?: string } | null)?.error ?? t("oura.syncFailed");
+      setMessage({ text: msg, type: "error" });
+      return;
+    }
+
+    const lastSyncDate = (data as { last_sync_date?: string }).last_sync_date;
+    if (lastSyncDate) setOuraLastSyncDate(lastSyncDate);
+    setMessage({ text: t("oura.syncComplete"), type: "success" });
+  };
+
+  const disconnectOura = async () => {
+    const confirmed = window.confirm(t("oura.disconnectConfirm"));
+    if (!confirmed) return;
+
+    setOuraDisconnecting(true);
+    setMessage(null);
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        oura_access_token: null,
+        oura_refresh_token: null,
+        oura_token_expires_at: null,
+        oura_connected_at: null,
+        oura_last_sync_date: null,
+      })
+      .eq("id", userId);
+
+    setOuraDisconnecting(false);
+
+    if (error) {
+      setMessage({ text: error.message, type: "error" });
+      return;
+    }
+
+    setOuraConnectedAt(null);
+    setOuraLastSyncDate(null);
+    setMessage({ text: t("oura.disconnected"), type: "success" });
   };
 
   const progress = getProgressPercent(totalSteps);
@@ -322,6 +461,59 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
           </div>
         )}
 
+        {OURA_ENABLED && (
+          <div className="section">
+            <h3 className="section-title">{t("oura.sectionTitle")}</h3>
+
+            {ouraConnectedAt ? (
+              <>
+                <p style={{ fontSize: "0.875rem", color: "#6e6e73", marginBottom: "0.5rem" }}>
+                  {t("oura.connectedSince", {
+                    date: new Date(ouraConnectedAt).toLocaleDateString(i18n.language),
+                  })}
+                </p>
+                {ouraLastSyncDate && (
+                  <p style={{ fontSize: "0.875rem", color: "#6e6e73", marginBottom: "0.75rem" }}>
+                    {t("oura.lastSynced", { date: ouraLastSyncDate })}
+                  </p>
+                )}
+                <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => void syncOura()}
+                    disabled={ouraSyncing}
+                  >
+                    {ouraSyncing ? t("oura.syncing") : t("oura.syncNow")}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm"
+                    onClick={() => void disconnectOura()}
+                    disabled={ouraDisconnecting}
+                  >
+                    {ouraDisconnecting ? t("oura.disconnecting") : t("oura.disconnect")}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p style={{ fontSize: "0.875rem", color: "#6e6e73", marginBottom: "0.75rem" }}>
+                  {t("oura.connectInstructions")}
+                </p>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={connectOura}
+                  disabled={ouraConnecting}
+                >
+                  {ouraConnecting ? t("oura.connecting") : t("oura.connect")}
+                </button>
+              </>
+            )}
+          </div>
+        )}
+
         <div className="section">
           <h3 className="section-title">{t("profile.password")}</h3>
           {changingPassword ? (
@@ -398,6 +590,8 @@ export default function Profile({ userId, onAccountDeleted, onLogout }: ProfileP
           </div>
           <p className="profile-legal">
             <a href="/privacy-policy.html">Privacy Policy</a>
+            {" · "}
+            <a href="/terms-of-service.html">Terms of Service</a>
           </p>
         </div>
 

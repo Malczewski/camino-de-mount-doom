@@ -443,15 +443,29 @@ export default function Map({
             alignItems: "center",
             justifyContent: "center",
             pointerEvents: "none",
-            color: "#fff",
-            fontSize: "0.875rem",
             padding: "16px",
-            textAlign: "center",
           }}
         >
-          {userGroups.length === 0
-            ? t("map.joinGroupPrompt")
-            : t("map.noTravelers")}
+          <div
+            style={{
+              background: "rgba(15, 10, 5, 0.82)",
+              color: "#f5e6c8",
+              fontSize: "1rem",
+              fontWeight: 600,
+              padding: "14px 22px",
+              borderRadius: "10px",
+              border: "1px solid rgba(210, 160, 80, 0.5)",
+              boxShadow: "0 4px 16px rgba(0,0,0,0.5)",
+              textAlign: "center",
+              maxWidth: "320px",
+              lineHeight: 1.5,
+              letterSpacing: "0.01em",
+            }}
+          >
+            {userGroups.length === 0
+              ? t("map.joinGroupPrompt")
+              : t("map.noTravelers")}
+          </div>
         </div>
       )}
 

@@ -8,7 +8,39 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const TOTAL_STEPS_TARGET = 1_300_000;
+// Must match POINTS with name+steps in src/lib/mapPosition.ts
+const CHECKPOINTS: Array<{ name: string; steps: number }> = [
+  { name: "Bag End", steps: 0 },
+  { name: "Bucklebury Ferry", steps: 65000 },
+  { name: "Bree", steps: 260000 },
+  { name: "Weathertop", steps: 540000 },
+  { name: "Trollshaws", steps: 687000 },
+  { name: "Rivendell", steps: 916000 },
+  { name: "Caradhras", steps: 1100000 },
+  { name: "Moria", steps: 1250000 },
+  { name: "Lothlórien", steps: 1350000 },
+  { name: "Anduin", steps: 1450000 },
+  { name: "Argonath", steps: 1630000 },
+  { name: "Amon Hen", steps: 1750000 },
+  { name: "Emyn Muil", steps: 1850000 },
+  { name: "Dead Marshes", steps: 1950000 },
+  { name: "Black Gate", steps: 2130000 },
+  { name: "Ithilien", steps: 2250000 },
+  { name: "Minas Morgul", steps: 2550000 },
+  { name: "Mordor", steps: 2600000 },
+  { name: "Mount Doom", steps: 3000000 },
+];
+
+function getNextCheckpoint(
+  groupSteps: number,
+): { name: string; stepsAway: number } | null {
+  for (const cp of CHECKPOINTS) {
+    if (cp.steps > groupSteps) {
+      return { name: cp.name, stepsAway: cp.steps - groupSteps };
+    }
+  }
+  return null;
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -50,7 +82,6 @@ Deno.serve(async (req: Request) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Resolve API key → user
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("id")
@@ -58,23 +89,28 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (profileError) {
-      console.error("Profile lookup failed:", profileError.message, profileError.code);
+      console.error(
+        "Profile lookup failed:",
+        profileError.message,
+        profileError.code,
+      );
       return jsonResponse({ error: "Internal server error" }, 500);
     }
 
     if (!profile) {
-      console.warn(`get-group-data: no profile found for api_key prefix=${keyPrefix}`);
+      console.warn(
+        `get-group-data: no profile found for api_key prefix=${keyPrefix}`,
+      );
       return jsonResponse({ error: "Unauthorized" }, 401);
     }
 
-    console.log(`get-group-data: resolved userId=${profile.id}`);
-
     const userId = profile.id as string;
+    console.log(`get-group-data: resolved userId=${userId}`);
 
-    // Get all groups this user belongs to
+    // Include created_at so we can scope group steps and compute daysInGroup
     const { data: memberships, error: memberError } = await supabase
       .from("group_members")
-      .select("group_id, groups(id, name)")
+      .select("group_id, groups(id, name, created_at)")
       .eq("user_id", userId);
 
     if (memberError) {
@@ -82,25 +118,49 @@ Deno.serve(async (req: Request) => {
       return jsonResponse({ error: "Internal server error" }, 500);
     }
 
-    console.log(`get-group-data: found ${memberships?.length ?? 0} group memberships`);
+    console.log(
+      `get-group-data: found ${memberships?.length ?? 0} group memberships`,
+    );
 
     if (!memberships || memberships.length === 0) {
       return jsonResponse({ groups: [] });
     }
 
-    // 7-day window
+    // Previous Mon–Sun (last full calendar week, UTC)
+    const today = new Date();
+    const dayOfWeek = today.getUTCDay(); // 0=Sun
+    const daysSinceMonday = (dayOfWeek + 6) % 7;
+    const lastSunday = new Date(today);
+    lastSunday.setUTCDate(today.getUTCDate() - daysSinceMonday - 1);
+    const lastMonday = new Date(lastSunday);
+    lastMonday.setUTCDate(lastSunday.getUTCDate() - 6);
+    const lastMondayStr = lastMonday.toISOString().split("T")[0];
+    const lastSundayStr = lastSunday.toISOString().split("T")[0];
+
+    // Last 7 calendar days — kept for backward compat with older app versions
     const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    sevenDaysAgo.setUTCDate(today.getUTCDate() - 7);
     const sevenDaysAgoStr = sevenDaysAgo.toISOString().split("T")[0];
 
     const groups = [];
 
     for (const membership of memberships) {
       const groupId = membership.group_id as string;
-      const groupMeta = membership.groups as { id: string; name: string } | null;
+      const groupMeta = membership.groups as {
+        id: string;
+        name: string;
+        created_at: string;
+      } | null;
       const groupName = groupMeta?.name ?? "";
+      const groupCreatedAtStr = groupMeta?.created_at ?? "2000-01-01T00:00:00Z";
+      const groupCreatedAtDate = groupCreatedAtStr.split("T")[0];
+      const daysInGroup = Math.max(
+        0,
+        Math.floor(
+          (Date.now() - new Date(groupCreatedAtStr).getTime()) / 86400000,
+        ),
+      );
 
-      // All members of this group + their profiles
       const { data: groupMembers, error: gmError } = await supabase
         .from("group_members")
         .select("user_id, profiles(display_name, total_steps)")
@@ -113,7 +173,36 @@ Deno.serve(async (req: Request) => {
 
       const memberIds = groupMembers.map((m) => m.user_id as string);
 
-      // Last 7 days steps for all members in one query
+      // Steps since group creation (used for group-scoped progress %)
+      const { data: groupLogs } = await supabase
+        .from("step_logs")
+        .select("user_id, steps")
+        .in("user_id", memberIds)
+        .gte("date", groupCreatedAtDate);
+
+      const groupStepsByUser: Record<string, number> = {};
+      for (const log of groupLogs ?? []) {
+        const uid = log.user_id as string;
+        groupStepsByUser[uid] =
+          (groupStepsByUser[uid] ?? 0) + (log.steps as number);
+      }
+
+      // Previous Mon–Sun steps (for last-week delta on detail view)
+      const { data: lastWeekLogs } = await supabase
+        .from("step_logs")
+        .select("user_id, steps")
+        .in("user_id", memberIds)
+        .gte("date", lastMondayStr)
+        .lte("date", lastSundayStr);
+
+      const lastWeekByUser: Record<string, number> = {};
+      for (const log of lastWeekLogs ?? []) {
+        const uid = log.user_id as string;
+        lastWeekByUser[uid] =
+          (lastWeekByUser[uid] ?? 0) + (log.steps as number);
+      }
+
+      // Last 7 days steps (backward compat)
       const { data: recentLogs } = await supabase
         .from("step_logs")
         .select("user_id, steps")
@@ -127,24 +216,29 @@ Deno.serve(async (req: Request) => {
       }
 
       const members = groupMembers.map((m) => {
+        const uid = m.user_id as string;
         const p = m.profiles as {
           display_name: string | null;
           total_steps: number;
         } | null;
+        const groupSteps = groupStepsByUser[uid] ?? 0;
         return {
           displayName: p?.display_name ?? "User",
+          isCurrentUser: uid === userId,
           totalSteps: p?.total_steps ?? 0,
-          last7DaysSteps: last7ByUser[m.user_id as string] ?? 0,
+          groupSteps,
+          last7DaysSteps: last7ByUser[uid] ?? 0,
+          lastWeekSteps: lastWeekByUser[uid] ?? 0,
+          nextCheckpoint: getNextCheckpoint(groupSteps),
         };
       });
 
-      // Sort by total steps descending so leader is at top
-      members.sort((a, b) => b.totalSteps - a.totalSteps);
+      members.sort((a, b) => b.groupSteps - a.groupSteps);
 
-      groups.push({ id: groupId, name: groupName, members });
+      groups.push({ id: groupId, name: groupName, daysInGroup, members });
     }
 
-    return jsonResponse({ groups });
+    return jsonResponse({ groups, totalSteps: 3_000_000 });
   } catch (err) {
     console.error("Unhandled error in get-group-data:", err);
     return jsonResponse({ error: "Internal server error" }, 500);
