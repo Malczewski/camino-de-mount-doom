@@ -281,40 +281,70 @@ export default function GroupScreen({
                 <p className="empty-state">{t("group.noMembers")}</p>
               ) : (
                 <ul className="member-list">
-                  {members.map((member) => {
-                    const weekPct = (member.last_week_steps / TOTAL_JOURNEY_STEPS * 100).toFixed(2);
-                    const nextStop = LANDMARKS.find(l => l.steps > member.group_steps);
-                    return (
-                      <li key={member.id} className="member-item">
-                        <div className="member-main">
-                          <span className="member-name">
-                            {member.display_name}
-                            {member.id === userId ? t("group.you") : ""}
-                          </span>
-                          <span className="member-progress">
-                            {getProgressPercent(member.group_steps).toFixed(2)}%
-                          </span>
-                        </div>
-                        <div className="member-sub">
-                          <span className="member-week-delta">
-                            +{weekPct}% {t("group.lastWeek")}
-                          </span>
-                          {nextStop ? (
-                            <span className="member-next-checkpoint">
-                              {t("group.nextCheckpoint", {
-                                name: nextStop.name,
-                                steps: (nextStop.steps - member.group_steps).toLocaleString(i18n.language),
-                              })}
+                  {[...members]
+                    .sort((a, b) => b.group_steps - a.group_steps)
+                    .map((member) => {
+                      const isMe = member.id === userId;
+                      const weekPct = (member.last_week_steps / TOTAL_JOURNEY_STEPS * 100).toFixed(2);
+                      const nextStop = LANDMARKS.find(l => l.steps > member.group_steps);
+                      const prevStop = [...LANDMARKS].reverse().find(l => l.steps <= member.group_steps) ?? LANDMARKS[0];
+                      const toNextPct = nextStop
+                        ? Math.min(100, ((member.group_steps - prevStop.steps) / (nextStop.steps - prevStop.steps)) * 100)
+                        : 100;
+                      const toFinalPct = Math.min(100, (member.group_steps / TOTAL_JOURNEY_STEPS) * 100);
+                      return (
+                        <li key={member.id} className={`member-item${isMe ? " member-item-me" : ""}`}>
+                          <div className="member-main">
+                            <span className="member-name">
+                              {member.display_name}
+                              {isMe ? t("group.you") : ""}
                             </span>
-                          ) : (
-                            <span className="member-next-checkpoint member-journey-complete">
-                              {t("group.journeyComplete")}
+                            <span className="member-progress">
+                              {getProgressPercent(member.group_steps).toFixed(2)}%
                             </span>
-                          )}
-                        </div>
-                      </li>
-                    );
-                  })}
+                          </div>
+                          <div className="member-bars">
+                            <div className="member-bar-row">
+                              <span className="member-bar-label">
+                                {nextStop ? nextStop.name : t("group.journeyComplete")}
+                              </span>
+                              <div className="progress-bar-track">
+                                <div
+                                  className="progress-bar-fill progress-bar-next"
+                                  style={{ width: `${toNextPct}%` }}
+                                />
+                              </div>
+                            </div>
+                            <div className="member-bar-row">
+                              <span className="member-bar-label">{t("group.mountDoom")}</span>
+                              <div className="progress-bar-track">
+                                <div
+                                  className="progress-bar-fill progress-bar-final"
+                                  style={{ width: `${toFinalPct}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                          <div className="member-sub">
+                            <span className="member-week-delta">
+                              +{weekPct}% {t("group.lastWeek")}
+                            </span>
+                            {nextStop ? (
+                              <span className="member-next-checkpoint">
+                                {t("group.nextCheckpoint", {
+                                  name: nextStop.name,
+                                  steps: (nextStop.steps - member.group_steps).toLocaleString(i18n.language),
+                                })}
+                              </span>
+                            ) : (
+                              <span className="member-next-checkpoint member-journey-complete">
+                                {t("group.journeyComplete")}
+                              </span>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
                 </ul>
               )}
             </div>

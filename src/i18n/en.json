@@ -67,7 +67,8 @@
     "groupLeft": "You left the group.",
     "lastWeek": "last week",
     "nextCheckpoint": "Next: {{name}} in {{steps}} steps",
-    "journeyComplete": "Journey complete! 🌋"
+    "journeyComplete": "Journey complete! 🌋",
+    "mountDoom": "Mount Doom"
   },
   "profile": {
     "yourJourney": "Your journey",

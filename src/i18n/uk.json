@@ -67,7 +67,8 @@
     "groupLeft": "Ви покинули групу.",
     "lastWeek": "на мин. тижні",
     "nextCheckpoint": "Далі: {{name}} за {{steps}} кроків",
-    "journeyComplete": "Подорож завершена! 🌋"
+    "journeyComplete": "Подорож завершена! 🌋",
+    "mountDoom": "Mount Doom"
   },
   "profile": {
     "yourJourney": "Ваша подорож",
