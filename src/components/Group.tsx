@@ -29,6 +29,8 @@ export default function GroupScreen({
   const { t, i18n } = useTranslation();
   const [groupMemberMap, setGroupMemberMap] = useState<Record<string, GroupMember[]>>({});
   const [copiedGroupId, setCopiedGroupId] = useState<string | null>(null);
+  const [renamingGroupId, setRenamingGroupId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState("");
   const [groupName, setGroupName] = useState("");
   const [inviteInput, setInviteInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -208,6 +210,45 @@ export default function GroupScreen({
     setMessage({ text: t("group.groupLeft"), type: "success" });
   };
 
+  const startRename = (group: Group) => {
+    setRenamingGroupId(group.id);
+    setRenameValue(group.name);
+    setMessage(null);
+  };
+
+  const cancelRename = () => {
+    setRenamingGroupId(null);
+    setRenameValue("");
+  };
+
+  const saveRename = async (groupId: string) => {
+    const name = renameValue.trim();
+    if (!name) {
+      setMessage({ text: t("group.enterGroupName"), type: "error" });
+      return;
+    }
+
+    setLoading(true);
+    setMessage(null);
+
+    const { error } = await supabase
+      .from("groups")
+      .update({ name })
+      .eq("id", groupId);
+
+    if (error) {
+      setMessage({ text: error.message ?? t("group.couldNotRename"), type: "error" });
+      setLoading(false);
+      return;
+    }
+
+    setRenamingGroupId(null);
+    setRenameValue("");
+    await onGroupsChange();
+    setLoading(false);
+    setMessage({ text: t("group.groupRenamed", { name }), type: "success" });
+  };
+
   const copyInviteCode = async (group: Group) => {
     try {
       await navigator.clipboard.writeText(group.invite_code);
@@ -234,16 +275,77 @@ export default function GroupScreen({
         return (
           <div key={group.id} className={`card group-card${isActive ? " group-card-active" : ""}`}>
             <div className="group-card-header">
-              <div>
-                <h2 className="section-title" style={{ marginBottom: 2 }}>{group.name}</h2>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {renamingGroupId === group.id ? (
+                  <div className="rename-row">
+                    <input
+                      type="text"
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      maxLength={60}
+                      autoFocus
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") void saveRename(group.id);
+                        if (e.key === "Escape") cancelRename();
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="btn-icon btn-icon-confirm"
+                      onClick={() => void saveRename(group.id)}
+                      disabled={loading}
+                      title={t("group.save")}
+                      aria-label={t("group.save")}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <polyline points="20 6 9 17 4 12"/>
+                      </svg>
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-icon btn-icon-cancel"
+                      onClick={cancelRename}
+                      disabled={loading}
+                      title={t("group.cancel")}
+                      aria-label={t("group.cancel")}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                      </svg>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="rename-row">
+                    <h2 className="section-title" style={{ marginBottom: 0 }}>{group.name}</h2>
+                    <button
+                      type="button"
+                      className="btn-icon"
+                      onClick={() => startRename(group)}
+                      title={t("group.rename")}
+                      aria-label={t("group.rename")}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </button>
+                  </div>
+                )}
                 <p className="group-start-date">
                   {t("group.trackingSince", {
-                    date: new Date(group.created_at).toLocaleDateString(i18n.language, {
+                    days: Math.floor((Date.now() - new Date(group.created_at).getTime()) / 86400000),
+                  })}
+                  {" "}
+                  <span
+                    className="group-start-date-info"
+                    title={new Date(group.created_at).toLocaleDateString(i18n.language, {
                       year: "numeric",
                       month: "short",
                       day: "numeric",
-                    }),
-                  })}
+                    })}
+                  >
+                    (i)
+                  </span>
                 </p>
               </div>
               {isActive ? (

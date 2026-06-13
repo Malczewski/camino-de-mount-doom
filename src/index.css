@@ -580,6 +580,46 @@ input:focus {
   margin-bottom: 16px;
 }
 
+.rename-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 2px;
+}
+
+.rename-row input {
+  flex: 1;
+  min-width: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  margin-bottom: 0;
+}
+
+.btn-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+  background: none;
+  border: none;
+  border-radius: 4px;
+  color: #6e6e73;
+  cursor: pointer;
+  opacity: 0.5;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.btn-icon:hover {
+  opacity: 1;
+  color: #1d1d1f;
+}
+
+.btn-icon-confirm { color: #22863a; }
+.btn-icon-confirm:hover { color: #196030; }
+.btn-icon-cancel { color: #6e6e73; }
+.btn-icon-cancel:hover { color: #c0392b; }
+
 .group-start-date {
   font-size: 0.75rem;
   color: #6e6e73;
