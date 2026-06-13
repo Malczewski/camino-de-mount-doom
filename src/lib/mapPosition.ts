@@ -563,7 +563,7 @@ export function splitRoutePath(
 
 export function getProgressPercent(steps: number): number {
   const clamped = Math.max(0, Math.min(steps, TOTAL_JOURNEY_STEPS));
-  return Math.round((clamped / TOTAL_JOURNEY_STEPS) * 1000) / 10;
+  return Math.round((clamped / TOTAL_JOURNEY_STEPS) * 10000) / 100;
 }
 
 export function getMapPosition(steps: number): { x: number; y: number } {

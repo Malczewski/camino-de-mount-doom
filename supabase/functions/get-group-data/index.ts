@@ -187,12 +187,16 @@ Deno.serve(async (req: Request) => {
           (groupStepsByUser[uid] ?? 0) + (log.steps as number);
       }
 
-      // Previous Mon–Sun steps (for last-week delta on detail view)
+      // Previous Mon–Sun steps (for last-week delta on detail view).
+      // Clamp the lower bound to the group creation date so members don't see
+      // pre-group history counting toward a delta while their group_steps is 0.
+      const lastWeekStart =
+        lastMondayStr > groupCreatedAtDate ? lastMondayStr : groupCreatedAtDate;
       const { data: lastWeekLogs } = await supabase
         .from("step_logs")
         .select("user_id, steps")
         .in("user_id", memberIds)
-        .gte("date", lastMondayStr)
+        .gte("date", lastWeekStart)
         .lte("date", lastSundayStr);
 
       const lastWeekByUser: Record<string, number> = {};

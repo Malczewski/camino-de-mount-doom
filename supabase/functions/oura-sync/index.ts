@@ -14,7 +14,6 @@ interface OuraProfile {
   oura_refresh_token: string | null;
   oura_token_expires_at: string | null;
   oura_last_sync_date: string | null;
-  created_at: string;
 }
 
 interface OuraTokenResponse {
@@ -45,11 +44,9 @@ function getStartDate(profile: OuraProfile): string {
     // is captured (Oura may finalize data hours after midnight).
     return profile.oura_last_sync_date;
   }
-  // First sync: go back 30 days or to account creation, whichever is more recent.
-  const thirtyDaysAgo = new Date();
-  thirtyDaysAgo.setUTCDate(thirtyDaysAgo.getUTCDate() - 30);
-  const createdAt = new Date(profile.created_at);
-  return utcDateStr(createdAt > thirtyDaysAgo ? createdAt : thirtyDaysAgo);
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 7);
+  return utcDateStr(sevenDaysAgo);
 }
 
 async function refreshToken(
@@ -249,7 +246,7 @@ Deno.serve(async (req: Request) => {
     const baseQuery = adminClient
       .from("profiles")
       .select(
-        "id, oura_access_token, oura_refresh_token, oura_token_expires_at, oura_last_sync_date, created_at",
+        "id, oura_access_token, oura_refresh_token, oura_token_expires_at, oura_last_sync_date",
       )
       .not("oura_access_token", "is", null);
 

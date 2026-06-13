@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import {
   getNearestLandmark,
@@ -9,6 +9,10 @@ import { supabase } from "../lib/supabase";
 const OURA_CLIENT_ID = import.meta.env.VITE_OURA_CLIENT_ID as string | undefined;
 const OURA_REDIRECT_URI = import.meta.env.VITE_OURA_REDIRECT_URI as string | undefined;
 const OURA_ENABLED = !!(OURA_CLIENT_ID && OURA_REDIRECT_URI);
+
+// Persists across component remounts (tab switches) so the one-time OAuth code
+// is never exchanged twice even when Profile unmounts and remounts.
+const _processedOuraCodes = new Set<string>();
 
 interface ProfileProps {
   userId: string;
@@ -41,10 +45,6 @@ export default function Profile({
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [savingPassword, setSavingPassword] = useState(false);
-
-  // Guards against React Strict Mode's double-effect invocation consuming the
-  // one-time OAuth code twice (second call would fail with an invalid_grant error).
-  const ouraCallbackFiredRef = useRef(false);
 
   // Oura state
   const [ouraConnectedAt, setOuraConnectedAt] = useState<string | null>(null);
@@ -140,41 +140,41 @@ export default function Profile({
   // Process Oura OAuth callback code passed from App after redirect.
   useEffect(() => {
     if (!pendingOuraCode || !OURA_REDIRECT_URI) return;
-
-    if (ouraCallbackFiredRef.current) return;
-    ouraCallbackFiredRef.current = true;
+    // Module-level set prevents re-running when Profile unmounts/remounts (tab
+    // switches), which would re-submit the already-consumed one-time code.
+    if (_processedOuraCodes.has(pendingOuraCode)) return;
+    _processedOuraCodes.add(pendingOuraCode);
 
     const handleCallback = async () => {
       setOuraConnecting(true);
       setMessage(null);
 
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
+      try {
+        const { data, error } = await supabase.functions.invoke("oura-callback", {
+          body: { code: pendingOuraCode, redirect_uri: OURA_REDIRECT_URI },
+        });
 
-      if (!accessToken) {
+        if (error != null || data?.ok !== true) {
+          const msg = (data as { error?: string } | null)?.error ?? t("oura.connectionFailed");
+          setMessage({ text: msg, type: "error" });
+          return;
+        }
+
+        const connectedAt = (data as { connected_at?: string }).connected_at;
+        if (!connectedAt) {
+          setMessage({ text: t("oura.connectionFailed"), type: "error" });
+          return;
+        }
+        setOuraConnectedAt(connectedAt);
+        setMessage({ text: t("oura.connected"), type: "success" });
+      } catch {
         setMessage({ text: t("oura.connectionFailed"), type: "error" });
+      } finally {
         setOuraConnecting(false);
-        return;
       }
-
-      const { data, error } = await supabase.functions.invoke("oura-callback", {
-        body: { code: pendingOuraCode, redirect_uri: OURA_REDIRECT_URI },
-      });
-
-      setOuraConnecting(false);
-
-      if (error || !data?.ok) {
-        const msg = (data as { error?: string } | null)?.error ?? t("oura.connectionFailed");
-        setMessage({ text: msg, type: "error" });
-        return;
-      }
-
-      setOuraConnectedAt((data as { connected_at?: string }).connected_at ?? new Date().toISOString());
-      setMessage({ text: t("oura.connected"), type: "success" });
     };
 
     void handleCallback();
-    // Only run once per mount with a code — no deps needed beyond pendingOuraCode.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -414,7 +414,7 @@ export default function Profile({
         </div>
         <div className="profile-stat">
           <span className="profile-stat-label">{t("profile.progressToMountDoom")}</span>
-          <span className="profile-stat-value">{progress}%</span>
+          <span className="profile-stat-value">{progress.toFixed(2)}%</span>
         </div>
         <div className="profile-stat">
           <span className="profile-stat-label">{t("profile.nearestLandmark")}</span>

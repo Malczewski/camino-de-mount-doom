@@ -292,7 +292,7 @@ export default function GroupScreen({
                             {member.id === userId ? t("group.you") : ""}
                           </span>
                           <span className="member-progress">
-                            {getProgressPercent(member.group_steps)}%
+                            {getProgressPercent(member.group_steps).toFixed(2)}%
                           </span>
                         </div>
                         <div className="member-sub">

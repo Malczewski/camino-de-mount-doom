@@ -39,12 +39,12 @@ Deno.serve(async (req: Request) => {
 
     if (!supabaseUrl || !serviceRoleKey || !clientId || !clientSecret) {
       console.error("Missing required environment variables");
-      return jsonResponse({ error: "Server configuration error" }, 500);
+      return jsonResponse({ ok: false, error: "Server configuration error" }, 500);
     }
 
     const authHeader = req.headers.get("Authorization");
     if (!authHeader?.startsWith("Bearer ")) {
-      return jsonResponse({ error: "Unauthorized" }, 401);
+      return jsonResponse({ ok: false, error: "Unauthorized" }, 401);
     }
     const jwt = authHeader.slice(7);
 
@@ -52,22 +52,24 @@ Deno.serve(async (req: Request) => {
 
     const { data: { user }, error: userError } = await adminClient.auth.getUser(jwt);
     if (userError || !user) {
-      return jsonResponse({ error: "Unauthorized" }, 401);
+      return jsonResponse({ ok: false, error: "Unauthorized" }, 401);
     }
 
     let body: { code?: unknown; redirect_uri?: unknown };
     try {
       body = await req.json();
     } catch {
-      return jsonResponse({ error: "Invalid JSON body" }, 400);
+      return jsonResponse({ ok: false, error: "Invalid JSON body" }, 400);
     }
 
     if (typeof body.code !== "string" || body.code.length === 0) {
-      return jsonResponse({ error: "code required" }, 400);
+      return jsonResponse({ ok: false, error: "code required" }, 400);
     }
     if (typeof body.redirect_uri !== "string" || body.redirect_uri.length === 0) {
-      return jsonResponse({ error: "redirect_uri required" }, 400);
+      return jsonResponse({ ok: false, error: "redirect_uri required" }, 400);
     }
+
+    //console.log(`oura-callback: exchanging code, client_id=${clientId}, redirect_uri=${body.redirect_uri}, code_prefix=${body.code.slice(0, 8)}`);
 
     const credentials = btoa(`${clientId}:${clientSecret}`);
     const tokenRes = await fetch("https://api.ouraring.com/oauth/token", {
@@ -83,17 +85,24 @@ Deno.serve(async (req: Request) => {
       }),
     });
 
+    const rawTokenBody = await tokenRes.text();
+    //console.log(`oura-callback: token exchange status=${tokenRes.status} body=${rawTokenBody}`);
+
     if (!tokenRes.ok) {
-      const errText = await tokenRes.text();
-      console.error(`oura-callback: token exchange failed (${tokenRes.status}):`, errText);
-      return jsonResponse({ error: "Failed to exchange authorization code" }, 400);
+      return jsonResponse({ ok: false, error: "Failed to exchange authorization code" }, 400);
     }
 
-    const tokenData = await tokenRes.json() as OuraTokenResponse;
+    let tokenData: OuraTokenResponse;
+    try {
+      tokenData = JSON.parse(rawTokenBody) as OuraTokenResponse;
+    } catch {
+      console.error("oura-callback: could not parse token response as JSON");
+      return jsonResponse({ ok: false, error: "Invalid token response from Oura" }, 500);
+    }
 
     if (!tokenData.access_token || !tokenData.refresh_token) {
       console.error("oura-callback: token response missing required fields");
-      return jsonResponse({ error: "Invalid token response from Oura" }, 500);
+      return jsonResponse({ ok: false, error: "Invalid token response from Oura" }, 500);
     }
 
     const expiresAt = tokenData.expires_in
@@ -115,13 +124,13 @@ Deno.serve(async (req: Request) => {
 
     if (updateError) {
       console.error("oura-callback: failed to store tokens:", updateError.message);
-      return jsonResponse({ error: "Failed to store tokens" }, 500);
+      return jsonResponse({ ok: false, error: "Failed to store tokens" }, 500);
     }
 
     console.log(`oura-callback: connected user ${user.id}`);
     return jsonResponse({ ok: true, connected_at: connectedAt });
   } catch (err) {
     console.error("Unhandled error in oura-callback:", err);
-    return jsonResponse({ error: "Internal server error" }, 500);
+    return jsonResponse({ ok: false, error: "Internal server error" }, 500);
   }
 });
