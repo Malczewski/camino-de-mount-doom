@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import mapImageUrl from "../assets/map.jpg";
 import { useTranslation } from "react-i18next";
 import {
   loadRouteConfig,
@@ -367,7 +368,7 @@ export default function Map({
       {/* Hidden decode source for drawImage; never composited. */}
       <img
         ref={imageRef}
-        src="/map.jpg"
+        src={mapImageUrl}
         alt=""
         style={{ display: "none" }}
         onLoad={fitToViewport}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import mapImageUrl from "../assets/map.jpg";
 import {
   DEFAULT_ROUTE_CONFIG,
   getFractionalIndex,
@@ -385,7 +386,7 @@ export default function Editor() {
           <div className="map-stage" style={stageStyle}>
             <img
               ref={imageRef}
-              src="/map.jpg"
+              src={mapImageUrl}
               alt="Middle-earth map"
               className="map-image"
               draggable={false}
