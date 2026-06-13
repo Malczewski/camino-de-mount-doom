@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { Trans, useTranslation } from "react-i18next";
 import { getProgressPercent, LANDMARKS, TOTAL_JOURNEY_STEPS } from "../lib/mapPosition";
 import { supabase, type Group, type GroupMember } from "../lib/supabase";
 
@@ -391,6 +391,8 @@ export default function GroupScreen({
                     .sort((a, b) => b.group_steps - a.group_steps)
                     .map((member) => {
                       const isMe = member.id === userId;
+                      const mySteps = members.find((m) => m.id === userId)?.group_steps ?? null;
+                      const delta = mySteps !== null ? member.group_steps - mySteps : null;
                       const weekPct = (member.last_week_steps / TOTAL_JOURNEY_STEPS * 100).toFixed(2);
                       const nextStop = LANDMARKS.find(l => l.steps > member.group_steps);
                       const prevStop = [...LANDMARKS].reverse().find(l => l.steps <= member.group_steps) ?? LANDMARKS[0];
@@ -401,10 +403,23 @@ export default function GroupScreen({
                       return (
                         <li key={member.id} className={`member-item${isMe ? " member-item-me" : ""}`}>
                           <div className="member-main">
-                            <span className="member-name">
-                              {member.display_name}
-                              {isMe ? t("group.you") : ""}
-                            </span>
+                            <div className="member-name-col">
+                              <span className="member-name">
+                                {member.display_name}
+                                {isMe ? t("group.you") : ""}
+                              </span>
+                              {!isMe && delta !== null && delta !== 0 && (
+                                <span className="member-step-delta">
+                                  <Trans
+                                    i18nKey={delta > 0 ? "group.stepsAhead" : "group.stepsBehind"}
+                                    values={{ steps: Math.abs(delta).toLocaleString(i18n.language) }}
+                                    components={[
+                                      <span key="n" className={delta > 0 ? "step-delta-behind" : "step-delta-ahead"} />,
+                                    ]}
+                                  />
+                                </span>
+                              )}
+                            </div>
                             <span className="member-progress">
                               {getProgressPercent(member.group_steps).toFixed(2)}%
                             </span>

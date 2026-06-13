@@ -74,7 +74,9 @@
     "lastWeek": "last week",
     "nextCheckpoint": "Next: {{name}} in {{steps}} steps",
     "journeyComplete": "Journey complete! 🌋",
-    "mountDoom": "Mount Doom"
+    "mountDoom": "Mount Doom",
+    "stepsAhead": "<0>{{steps}}</0> steps ahead",
+    "stepsBehind": "<0>{{steps}}</0> steps behind"
   },
   "profile": {
     "yourJourney": "Your journey",

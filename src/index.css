@@ -286,6 +286,26 @@ input:focus {
   flex-wrap: wrap;
 }
 
+.member-name-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.member-step-delta {
+  font-size: 0.8125rem;
+  color: #6e6e73;
+}
+
+.step-delta-ahead {
+  color: #34a853;
+}
+
+.step-delta-behind {
+  color: #e53935;
+}
+
 .member-week-delta {
   font-size: 0.8125rem;
   color: #34a853;

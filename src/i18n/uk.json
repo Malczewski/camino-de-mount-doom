@@ -76,7 +76,9 @@
     "lastWeek": "за мин. тиждень",
     "nextCheckpoint": "Далі: {{name}} за {{steps}} кроків",
     "journeyComplete": "Подорож завершена! 🌋",
-    "mountDoom": "Mount Doom"
+    "mountDoom": "Mount Doom",
+    "stepsAhead": "<0>{{steps}}</0> кроків попереду",
+    "stepsBehind": "<0>{{steps}}</0> кроків позаду"
   },
   "profile": {
     "yourJourney": "Ваша подорож",
