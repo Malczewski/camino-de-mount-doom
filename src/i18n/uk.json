@@ -39,7 +39,10 @@
   },
   "group": {
     "noFellowship": "Ви ще не приєдналися до жодного братства.",
-    "trackingSince": "Мандруємо {{days}} днів",
+    "trackingSince_one": "Мандруємо {{count}} день",
+    "trackingSince_few": "Мандруємо {{count}} дні",
+    "trackingSince_many": "Мандруємо {{count}} днів",
+    "trackingSince_other": "Мандруємо {{count}} днів",
     "onMap": "На карті",
     "viewOnMap": "Показати на карті",
     "inviteCode": "Код запрошення",
@@ -70,7 +73,7 @@
     "cancel": "Скасувати",
     "groupRenamed": "\"{{name}}\" перейменовано!",
     "couldNotRename": "Не вдалося перейменувати групу.",
-    "lastWeek": "на мин. тижні",
+    "lastWeek": "за мин. тиждень",
     "nextCheckpoint": "Далі: {{name}} за {{steps}} кроків",
     "journeyComplete": "Подорож завершена! 🌋",
     "mountDoom": "Mount Doom"

@@ -333,7 +333,7 @@ export default function GroupScreen({
                 )}
                 <p className="group-start-date">
                   {t("group.trackingSince", {
-                    days: Math.floor((Date.now() - new Date(group.created_at).getTime()) / 86400000),
+                    count: Math.floor((Date.now() - new Date(group.created_at).getTime()) / 86400000),
                   })}
                   {" "}
                   <span
