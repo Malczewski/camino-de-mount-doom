@@ -250,25 +250,19 @@ export default function Profile({
     setDeleting(true);
     setMessage(null);
 
-    const { error: profileError } = await supabase
-      .from("profiles")
-      .delete()
-      .eq("id", userId);
+    const { error: deleteError } = await supabase.functions.invoke(
+      "delete-account",
+      { method: "POST" },
+    );
 
-    if (profileError) {
-      setMessage({ text: profileError.message, type: "error" });
+    if (deleteError) {
+      setMessage({ text: deleteError.message, type: "error" });
       setDeleting(false);
       return;
     }
 
-    const { error: signOutError } = await supabase.auth.signOut();
+    await supabase.auth.signOut();
     setDeleting(false);
-
-    if (signOutError) {
-      setMessage({ text: signOutError.message, type: "error" });
-      return;
-    }
-
     onAccountDeleted();
   };
 
@@ -358,8 +352,6 @@ export default function Profile({
   return (
     <div className="screen">
       <div className="card">
-        <h2 className="section-title">{displayName || t("profile.yourJourney")}</h2>
-
         <div className="section">
           <h3 className="section-title">{t("profile.displayName")}</h3>
           {editingName ? (
