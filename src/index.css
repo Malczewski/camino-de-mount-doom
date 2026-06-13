@@ -625,6 +625,13 @@ input:focus {
   color: #6e6e73;
 }
 
+.group-start-date-info {
+  cursor: help;
+  opacity: 0.6;
+  vertical-align: middle;
+  margin-left: 2px;
+}
+
 .group-active-badge {
   font-size: 0.75rem;
   font-weight: 600;

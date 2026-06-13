@@ -39,7 +39,7 @@
   },
   "group": {
     "noFellowship": "You haven't joined any fellowship yet.",
-    "trackingSince": "Tracking since {{date}}",
+    "trackingSince": "Walking for {{days}} days",
     "onMap": "On map",
     "viewOnMap": "View on map",
     "inviteCode": "Invite code",

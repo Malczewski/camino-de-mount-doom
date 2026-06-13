@@ -39,7 +39,7 @@
   },
   "group": {
     "noFellowship": "Ви ще не приєдналися до жодного братства.",
-    "trackingSince": "Відстеження з {{date}}",
+    "trackingSince": "Мандруємо {{days}} днів",
     "onMap": "На карті",
     "viewOnMap": "Показати на карті",
     "inviteCode": "Код запрошення",
