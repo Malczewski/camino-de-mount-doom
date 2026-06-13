@@ -185,6 +185,11 @@ The **Oura Ring** section on the Profile page is hidden until both `VITE_OURA_CL
 
 ## 6. Connect IQ watch app
 
+Test:
+```bash
+monkeydo bin/garminapp.prg fenix7
+```
+
 ```bash
 cd garmin-app
 monkeyc -o camino-de-mount-doom.prg -f monkey.jungle -y developer_key.der
@@ -194,7 +199,7 @@ monkeyc -o camino-de-mount-doom.prg -f monkey.jungle -y developer_key.der
 - Open **My Device → Camino de Mount Doom → Settings** in Garmin Connect and sign in.
 - Background sync runs on a temporal event (default: hourly; minimum on most devices: 5 minutes for testing).
 
-**Permissions** (in `manifest.xml`): `BACKGROUND_SYNC`, `COMMUNICATIONS`, `FIT_CONTRIBUTOR`.
+**Permissions** (in `manifest.xml`): `BACKGROUND_SYNC`, `COMMUNICATIONS`.
 
 **Requirements:** Garmin Connect installed, logged in, and phone has internet when sync runs. HTTP is relayed through the phone, not directly from the watch.
 

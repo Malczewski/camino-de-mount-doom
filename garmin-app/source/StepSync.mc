@@ -62,9 +62,11 @@ module StepSync {
             missedDays = daysBetween(lastSync as Lang.String, today);
         }
 
-        // Back-fill missing days from ActivityMonitor history (up to 7 days)
-        if (missedDays > 1) {
-            var maxFill = missedDays < 8 ? missedDays - 1 : 7;
+        // Back-fill missing days from ActivityMonitor history (up to 7 days).
+        // Uses >= 1 so yesterday is always re-synced with its final full-day count,
+        // covering steps taken after the previous sync run.
+        if (missedDays >= 1) {
+            var maxFill = missedDays < 8 ? missedDays : 7;
             try {
                 var history = ActivityMonitor.getHistory();
                 if (history instanceof Lang.Array) {

@@ -18,4 +18,16 @@ Connect IQ</string>
     <string id="NoMembers">Немає учасників</string>
     <string id="WebApp">Вебзастосунок</string>
     <string id="PressToOpen">Натисніть для відкриття</string>
+    <string id="DaysOnRoad">$1$ днів у дорозі</string>
+    <string id="DaysOnRoad1">$1$ день у дорозі</string>
+    <string id="DaysOnRoad21">$1$ день у дорозі</string>
+    <string id="DaysOnRoad24">$1$ дні у дорозі</string>
+    <string id="TapForDetails">Натисніть для деталей</string>
+    <string id="YouSuffix"> (ви)</string>
+    <string id="LastWeek">мин. тижня</string>
+    <string id="StepsAhead">$1$ кроків попереду</string>
+    <string id="StepsBehind">$1$ кроків позаду</string>
+    <string id="NextCheckpoint">Наступна зупинка:</string>
+    <string id="InSteps">за $1$ кроків</string>
+    <string id="JourneyComplete">Подорож завершена!</string>
 </strings>

@@ -31,15 +31,21 @@ const CHECKPOINTS: Array<{ name: string; steps: number }> = [
   { name: "Mount Doom", steps: 3000000 },
 ];
 
-function getNextCheckpoint(
-  groupSteps: number,
-): { name: string; stepsAway: number } | null {
+function getCheckpointInfo(groupSteps: number): {
+  nextCheckpoint: { name: string; stepsAway: number } | null;
+  prevCheckpoint: { name: string; steps: number } | null;
+} {
+  let prev: { name: string; steps: number } | null = null;
   for (const cp of CHECKPOINTS) {
     if (cp.steps > groupSteps) {
-      return { name: cp.name, stepsAway: cp.steps - groupSteps };
+      return {
+        nextCheckpoint: { name: cp.name, stepsAway: cp.steps - groupSteps },
+        prevCheckpoint: prev,
+      };
     }
+    prev = cp;
   }
-  return null;
+  return { nextCheckpoint: null, prevCheckpoint: prev };
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -226,6 +232,7 @@ Deno.serve(async (req: Request) => {
           total_steps: number;
         } | null;
         const groupSteps = groupStepsByUser[uid] ?? 0;
+        const { nextCheckpoint, prevCheckpoint } = getCheckpointInfo(groupSteps);
         return {
           displayName: p?.display_name ?? "User",
           isCurrentUser: uid === userId,
@@ -233,7 +240,8 @@ Deno.serve(async (req: Request) => {
           groupSteps,
           last7DaysSteps: last7ByUser[uid] ?? 0,
           lastWeekSteps: lastWeekByUser[uid] ?? 0,
-          nextCheckpoint: getNextCheckpoint(groupSteps),
+          nextCheckpoint,
+          prevCheckpoint,
         };
       });
 

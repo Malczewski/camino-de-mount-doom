@@ -9,9 +9,41 @@ var gGroupData as Lang.Array or Null = null;
 var gLoadingData as Lang.Boolean = false;
 var gCurrentPage as Lang.Number = 0;
 var gDataError as Lang.String or Null = null;
+var gTotalSteps as Lang.Float = 3000000.0;
 
 const WEB_APP_URL = "https://camino-de-mount-doom.netlify.app";
-const TOTAL_STEPS_F = 3000000.0;
+
+// Total pages in the current navigation flow.
+// Single-group: 1 overview + N member pages + 1 web link.
+// Multi-group:  N group pages + 1 web link.
+function formatDaysOnRoad(days as Lang.Number) as Lang.String {
+    var rem100 = days % 100;
+    var rem10 = days % 10;
+    var key;
+    if (rem100 >= 11 && rem100 <= 19) {
+        key = Rez.Strings.DaysOnRoad;
+    } else if (days == 1) {
+        key = Rez.Strings.DaysOnRoad1;
+    } else if (rem10 == 1) {
+        key = Rez.Strings.DaysOnRoad21;  // 21, 31, ... — Ukrainian: "день", English: "days"
+    } else if (rem10 >= 2 && rem10 <= 4) {
+        key = Rez.Strings.DaysOnRoad24;
+    } else {
+        key = Rez.Strings.DaysOnRoad;
+    }
+    return Lang.format(WatchUi.loadResource(key) as Lang.String, [days]);
+}
+
+function calcTotalPages() as Lang.Number {
+    var g = gGroupData;
+    if (g == null || g.size() == 0) { return 1; }
+    if (g.size() == 1) {
+        var m = (g[0] as Lang.Dictionary).get("members");
+        var cnt = m instanceof Lang.Array ? (m as Lang.Array).size() : 0;
+        return 1 + cnt + 1;
+    }
+    return g.size() + 1;
+}
 
 class AppView extends WatchUi.View {
 
@@ -42,12 +74,16 @@ class AppView extends WatchUi.View {
         gLoadingData = false;
         Logger.log("onGroupDataResponse: code=" + code + " data=" + data);
         if (code == 200 && data instanceof Lang.Dictionary) {
-            var groups = (data as Lang.Dictionary).get("groups");
+            var dict = data as Lang.Dictionary;
+            var groups = dict.get("groups");
             gGroupData = groups instanceof Lang.Array ? groups as Lang.Array : new [0];
-            var tp = totalPages();
+            var tsObj = dict.get("totalSteps");
+            if (tsObj instanceof Lang.Number) { gTotalSteps = (tsObj as Lang.Number).toFloat(); }
+            else if (tsObj instanceof Lang.Long) { gTotalSteps = (tsObj as Lang.Long).toFloat(); }
+            else if (tsObj instanceof Lang.Float) { gTotalSteps = tsObj as Lang.Float; }
+            var tp = calcTotalPages();
             if (gCurrentPage >= tp) { gCurrentPage = 0; }
         } else {
-            // Try to show the error message from the response body
             var msg = "Error " + code;
             if (data instanceof Lang.Dictionary) {
                 var errBody = (data as Lang.Dictionary).get("error");
@@ -64,8 +100,7 @@ class AppView extends WatchUi.View {
     }
 
     function totalPages() as Lang.Number {
-        var g = gGroupData;
-        return (g != null ? g.size() : 0) + 1; // +1 for the web app page
+        return calcTotalPages();
     }
 
     function onUpdate(dc as Graphics.Dc) as Void {
@@ -104,12 +139,23 @@ class AppView extends WatchUi.View {
             return;
         }
 
-        if (gCurrentPage < groups.size()) {
-            drawGroupPage(dc, groups[gCurrentPage] as Lang.Dictionary);
-        } else {
+        var tp = calcTotalPages();
+        var webIdx = tp - 1;
+
+        if (gCurrentPage == webIdx) {
             drawWebAppPage(dc);
+        } else if (groups.size() == 1) {
+            // Single-group: page 0 = overview (no hint), pages 1..N = inline member details
+            if (gCurrentPage == 0) {
+                drawGroupPage(dc, groups[0] as Lang.Dictionary);
+            } else {
+                MemberDetailDraw.draw(dc, groups[0] as Lang.Dictionary, gCurrentPage - 1);
+            }
+        } else {
+            // Multi-group: pages 0..N-1 = group overviews
+            drawGroupPage(dc, groups[gCurrentPage] as Lang.Dictionary);
         }
-        drawPageDots(dc, gCurrentPage, totalPages());
+        drawPageDots(dc, gCurrentPage, tp);
     }
 
     function drawCentered(dc as Graphics.Dc, text as Lang.String) as Void {
@@ -122,83 +168,113 @@ class AppView extends WatchUi.View {
         var W = dc.getWidth();
         var H = dc.getHeight();
         var cx = W / 2;
-        var mg = (W * 0.13).toNumber();
-        var availW = W - mg * 2;
-        // Measure "+99.99%" in FONT_TINY so the bar is always shorter than the text
-        var deltaTextW = dc.getTextWidthInPixels("+99.99%", Graphics.FONT_TINY);
-        var gap = (W * 0.025).toNumber();
-        var barW = availW - deltaTextW - gap;
+        var mg = (W * 0.12).toNumber();
 
         // Group name
         var gnameObj = group.get("name");
-        var gname = gnameObj instanceof Lang.String ? gnameObj as Lang.String : WatchUi.loadResource(Rez.Strings.GroupFallback) as Lang.String;
+        var gname = gnameObj instanceof Lang.String
+            ? gnameObj as Lang.String
+            : WatchUi.loadResource(Rez.Strings.GroupFallback) as Lang.String;
+        if (gname.length() > 13) { gname = gname.substring(0, 13) + ".."; }
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, (H * 0.12).toNumber(), Graphics.FONT_SMALL, gname,
+        dc.drawText(cx, (H * 0.22).toNumber(), Graphics.FONT_SMALL, gname,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
-        // Member list
+        // "N days on the road" subtitle
+        var daysObj = group.get("daysInGroup");
+        var days = daysObj instanceof Lang.Number
+            ? (daysObj as Lang.Number)
+            : (daysObj instanceof Lang.Long ? (daysObj as Lang.Long).toNumber() : 0);
+        var daysFont = Graphics.FONT_TINY;
+        if (Graphics has :FONT_XTINY) { daysFont = Graphics.FONT_XTINY; }
+        dc.setColor(0x888888, Graphics.COLOR_TRANSPARENT);
+        dc.drawText(cx, (H * 0.30).toNumber(), daysFont,
+            formatDaysOnRoad(days),
+            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+
+        // Member list — up to 5, name left + XX.XX% right, no progress bars
         var membersObj = group.get("members");
         var members = membersObj instanceof Lang.Array ? membersObj as Lang.Array : new [0];
-        var count = members.size() > 3 ? 3 : members.size();
+        var count = members.size() > 5 ? 5 : members.size();
+
         if (count == 0) {
             dc.setColor(0x888888, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(cx, (H * 0.55).toNumber(), Graphics.FONT_TINY, WatchUi.loadResource(Rez.Strings.NoMembers) as Lang.String,
+            dc.drawText(cx, (H * 0.55).toNumber(), Graphics.FONT_TINY,
+                WatchUi.loadResource(Rez.Strings.NoMembers) as Lang.String,
                 Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-            return;
-        }
+        } else {
+            // Single progress line with per-member tick marks
+            var barY = (H * 0.365).toNumber();
+            var barLineH = 3;
+            var barLeft = mg;
+            var barWidth = W - mg * 2;
 
-        // Fixed row height — never divided by count so layout is identical for 1 or 4 users
-        var startY = (H * 0.20).toNumber();
-        var rowH = (H * 0.23).toNumber();
-        var nameOff = (H * 0.04).toNumber();   // name line: fixed px below row top
-        var barOff  = (H * 0.12).toNumber();   // bar line:  fixed px below row top
-
-        for (var i = 0; i < count; i++) {
-            var mObj = members[i];
-            if (!(mObj instanceof Lang.Dictionary)) { continue; }
-            var m = mObj as Lang.Dictionary;
-            var rowY = startY + i * rowH;
-
-            var nameObj = m.get("displayName");
-            var name = nameObj instanceof Lang.String ? nameObj as Lang.String : "?";
-            if (name.length() > 10) { name = name.substring(0, 10) + ".."; }
-
-            var stepsF = numToFloat(m.get("totalSteps"));
-            var progress = stepsF / TOTAL_STEPS_F;
-            if (progress > 1.0) { progress = 1.0; }
-
-            var weekF = numToFloat(m.get("last7DaysSteps"));
-            var weekPct = weekF / TOTAL_STEPS_F * 100.0;
-            var totalPct = progress * 100.0;
-
-            // Line 1: name (left) · total% (right)
-            var line1Y = rowY + nameOff;
-            dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(mg, line1Y, Graphics.FONT_TINY, name,
-                Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
-            dc.setColor(0xCCCCCC, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(W - mg, line1Y, Graphics.FONT_TINY,
-                totalPct.format("%.2f") + "%",
-                Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER);
-
-            // Line 2: [progress bar] [+delta%]
-            var barTopY = rowY + barOff;
-            var barH = 7;
-            var filledW = (barW.toFloat() * progress).toNumber();
-
-            dc.setColor(0x333333, Graphics.COLOR_TRANSPARENT);
-            dc.fillRectangle(mg, barTopY, barW, barH);
-            if (filledW > 0) {
-                dc.setColor(Graphics.COLOR_DK_GREEN, Graphics.COLOR_TRANSPARENT);
-                dc.fillRectangle(mg, barTopY, filledW, barH);
+            var myProg = 0.0;
+            var allMCount = members.size();
+            for (var j = 0; j < allMCount; j++) {
+                var mj = members[j];
+                if (mj instanceof Lang.Dictionary) {
+                    var myFlag = (mj as Lang.Dictionary).get("isCurrentUser");
+                    if (myFlag instanceof Lang.Boolean && (myFlag as Lang.Boolean)) {
+                        var myGs = MemberDetailDraw.numToFloat((mj as Lang.Dictionary).get("groupSteps"));
+                        myProg = myGs / gTotalSteps;
+                        if (myProg > 1.0) { myProg = 1.0; }
+                        break;
+                    }
+                }
             }
 
-            // Delta label: right-aligned at same anchor as total% above — guarantees alignment
-            dc.setColor(0x00CC44, Graphics.COLOR_TRANSPARENT);
-            dc.drawText(W - mg, barTopY + barH / 2, Graphics.FONT_TINY,
-                "+" + weekPct.format("%.2f") + "%",
-                Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER);
+            dc.setColor(0x333333, Graphics.COLOR_TRANSPARENT);
+            dc.fillRectangle(barLeft, barY, barWidth, barLineH);
+            var greenW = (barWidth * myProg).toNumber();
+            if (greenW > 0) {
+                dc.setColor(Graphics.COLOR_DK_GREEN, Graphics.COLOR_TRANSPARENT);
+                dc.fillRectangle(barLeft, barY, greenW, barLineH);
+            }
+
+            for (var k = 0; k < allMCount; k++) {
+                var mk = members[k];
+                if (!(mk instanceof Lang.Dictionary)) { continue; }
+                var mdk = mk as Lang.Dictionary;
+                var gs = MemberDetailDraw.numToFloat(mdk.get("groupSteps"));
+                var prog = gs / gTotalSteps;
+                if (prog > 1.0) { prog = 1.0; }
+                var tickX = barLeft + (barWidth * prog).toNumber();
+                var tickFlag = mdk.get("isCurrentUser");
+                var isYouK = tickFlag instanceof Lang.Boolean && (tickFlag as Lang.Boolean);
+                var tickH2 = isYouK ? 11 : 7;
+                dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+                dc.fillRectangle(tickX - 1, barY + barLineH / 2 - tickH2 / 2, 2, tickH2);
+            }
+
+            // Member name + percentage list
+            var startY = (H * 0.44).toNumber();
+            var rowH = (H * 0.105).toNumber();
+
+            for (var i = 0; i < count; i++) {
+                var mObj = members[i];
+                if (!(mObj instanceof Lang.Dictionary)) { continue; }
+                var m = mObj as Lang.Dictionary;
+                var rowY = startY + i * rowH;
+
+                var nameObj = m.get("displayName");
+                var name = nameObj instanceof Lang.String ? nameObj as Lang.String : "?";
+                if (name.length() > 11) { name = name.substring(0, 11) + ".."; }
+
+                var groupStepsF = MemberDetailDraw.numToFloat(m.get("groupSteps"));
+                var pct = groupStepsF / gTotalSteps * 100.0;
+                if (pct > 100.0) { pct = 100.0; }
+
+                dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
+                dc.drawText(mg, rowY, Graphics.FONT_TINY, name,
+                    Graphics.TEXT_JUSTIFY_LEFT | Graphics.TEXT_JUSTIFY_VCENTER);
+                dc.setColor(0xCCCCCC, Graphics.COLOR_TRANSPARENT);
+                dc.drawText(W - mg, rowY, Graphics.FONT_TINY,
+                    pct.format("%.2f") + "%",
+                    Graphics.TEXT_JUSTIFY_RIGHT | Graphics.TEXT_JUSTIFY_VCENTER);
+            }
         }
+
     }
 
     function drawWebAppPage(dc as Graphics.Dc) as Void {
@@ -207,20 +283,20 @@ class AppView extends WatchUi.View {
         var cx = W / 2;
 
         dc.setColor(Graphics.COLOR_WHITE, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, (H * 0.33).toNumber(), Graphics.FONT_MEDIUM, WatchUi.loadResource(Rez.Strings.WebApp) as Lang.String,
+        dc.drawText(cx, (H * 0.36).toNumber(), Graphics.FONT_MEDIUM,
+            WatchUi.loadResource(Rez.Strings.WebApp) as Lang.String,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
 
+        var urlFont = Graphics.FONT_TINY;
+        if (Graphics has :FONT_XTINY) {
+            urlFont = Graphics.FONT_XTINY;
+        }
         dc.setColor(0xAAAAAA, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, (H * 0.52).toNumber(), Graphics.FONT_TINY,
+        dc.drawText(cx, (H * 0.54).toNumber(), urlFont,
             "camino-de-mount-doom",
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-        dc.drawText(cx, (H * 0.63).toNumber(), Graphics.FONT_TINY,
+        dc.drawText(cx, (H * 0.63).toNumber(), urlFont,
             ".netlify.app",
-            Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
-
-        dc.setColor(0x4488FF, Graphics.COLOR_TRANSPARENT);
-        dc.drawText(cx, (H * 0.77).toNumber(), Graphics.FONT_TINY,
-            WatchUi.loadResource(Rez.Strings.PressToOpen) as Lang.String,
             Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
     }
 
@@ -228,11 +304,21 @@ class AppView extends WatchUi.View {
         if (total <= 1) { return; }
         var W = dc.getWidth();
         var H = dc.getHeight();
+        var dotsY = (H * 0.91).toNumber();
+
+        // Switch to text counter when dots would overflow the circular bezel
+        if (total > 10) {
+            dc.setColor(0x555555, Graphics.COLOR_TRANSPARENT);
+            dc.drawText(W / 2, dotsY, Graphics.FONT_TINY,
+                (current + 1).toString() + "/" + total.toString(),
+                Graphics.TEXT_JUSTIFY_CENTER | Graphics.TEXT_JUSTIFY_VCENTER);
+            return;
+        }
+
         var r = (W * 0.018).toNumber();
         if (r < 3) { r = 3; }
         var sp = r * 3;
         var startX = (W - (total - 1) * sp) / 2;
-        var dotsY = H - (H * 0.06).toNumber();
 
         for (var i = 0; i < total; i++) {
             if (i == current) {
@@ -243,14 +329,5 @@ class AppView extends WatchUi.View {
                 dc.fillCircle(startX + i * sp, dotsY, r);
             }
         }
-    }
-
-    // Safely convert any numeric type coming from JSON to Float
-    function numToFloat(val as Lang.Object or Null) as Lang.Float {
-        if (val instanceof Lang.Float) { return val as Lang.Float; }
-        if (val instanceof Lang.Double) { return (val as Lang.Double).toFloat(); }
-        if (val instanceof Lang.Long) { return (val as Lang.Long).toFloat(); }
-        if (val instanceof Lang.Number) { return (val as Lang.Number).toFloat(); }
-        return 0.0;
     }
 }

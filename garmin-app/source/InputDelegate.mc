@@ -21,10 +21,17 @@ class AppInputDelegate extends WatchUi.InputDelegate {
             return true;
         }
         if (key == WatchUi.KEY_ENTER) {
-            var groups = gGroupData;
-            var webIdx = groups != null ? groups.size() : 0;
+            var webIdx = calcTotalPages() - 1;
             if (gCurrentPage == webIdx) {
                 Communications.openWebPage(WEB_APP_URL, null, null);
+                return true;
+            }
+            // In multi-group mode only: push member detail view for the selected group
+            var groups = gGroupData;
+            if (groups != null && groups.size() > 1 && gCurrentPage < groups.size()) {
+                var group = groups[gCurrentPage] as Lang.Dictionary;
+                var detailView = new MemberDetailView(group);
+                WatchUi.pushView(detailView, new MemberDetailDelegate(detailView), WatchUi.SLIDE_LEFT);
                 return true;
             }
         }
@@ -46,8 +53,7 @@ class AppInputDelegate extends WatchUi.InputDelegate {
     }
 
     private function shiftPage(delta as Lang.Number) as Void {
-        var groups = gGroupData;
-        var tp = (groups != null ? groups.size() : 0) + 1;
+        var tp = calcTotalPages();
         gCurrentPage = ((gCurrentPage + delta) + tp) % tp;
         Logger.log("page -> " + gCurrentPage + "/" + tp);
         WatchUi.requestUpdate();

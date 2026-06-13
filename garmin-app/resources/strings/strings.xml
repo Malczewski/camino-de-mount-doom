@@ -18,4 +18,16 @@ the web app</string>
     <string id="NoMembers">No members</string>
     <string id="WebApp">Web App</string>
     <string id="PressToOpen">Press to open</string>
+    <string id="DaysOnRoad">$1$ days on the road</string>
+    <string id="DaysOnRoad1">$1$ day on the road</string>
+    <string id="DaysOnRoad21">$1$ days on the road</string>
+    <string id="DaysOnRoad24">$1$ days on the road</string>
+    <string id="TapForDetails">Press for details</string>
+    <string id="YouSuffix"> (you)</string>
+    <string id="LastWeek">last week</string>
+    <string id="StepsAhead">$1$ steps ahead</string>
+    <string id="StepsBehind">$1$ steps behind</string>
+    <string id="NextCheckpoint">Next checkpoint:</string>
+    <string id="InSteps">in $1$ steps</string>
+    <string id="JourneyComplete">Journey complete!</string>
 </strings>
